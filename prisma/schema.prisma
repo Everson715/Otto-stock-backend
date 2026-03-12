@@ -4,10 +4,69 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model Medico {
+  id     Int     @id @default(autoincrement())
+  nome   String
+  crm    String?
+
+  atendimentos Atendimento[]
+}
+
+model Exame {
+  id    Int    @id @default(autoincrement())
+  nome  String
+
+  insumos       ExameInsumo[]
+  atendimentos  Atendimento[]
+}
+
+model Insumo {
+  id    Int    @id @default(autoincrement())
+  nome  String
+
+  estoque      Estoque?
+  exames       ExameInsumo[]
+}
+
+//Controla a quantidade disponível.
+model Estoque {
+  id        Int @id @default(autoincrement())
+  quantidade Int
+
+  insumoId  Int @unique
+  insumo    Insumo @relation(fields: [insumoId], references: [id])
+}
+
+//Relaciona exame com insumos.
+model ExameInsumo {
+  id         Int @id @default(autoincrement())
+
+  exameId    Int
+  insumoId   Int
+  quantidade Int
+
+  exame      Exame  @relation(fields: [exameId], references: [id])
+  insumo     Insumo @relation(fields: [insumoId], references: [id])
+}
+
+//Representa um exame realizado.
+model Atendimento {
+  id       Int @id @default(autoincrement())
+
+  medicoId Int
+  exameId  Int
+
+  status   String @default("EM_ATENDIMENTO")
+  criadoEm DateTime @default(now())
+
+  medico   Medico @relation(fields: [medicoId], references: [id])
+  exame    Exame  @relation(fields: [exameId], references: [id])
 }
