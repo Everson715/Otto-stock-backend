@@ -145,13 +145,13 @@ Quando o atendimento é finalizado:
 Clone o repositório:
 
 ```
-git clone https://github.com/seu-repositorio/otto-stock-api
+git clone https://github.com/Everson715/Otto-stock-backend.git
 ```
 
 Entre no projeto:
 
 ```
-cd otto-stock-api
+cd otto-stock-backend
 ```
 
 Instale as dependências:
