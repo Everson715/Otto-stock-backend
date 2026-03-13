@@ -26,6 +26,9 @@ model Exame {
 
   insumos       ExameInsumo[]
   atendimentos  Atendimento[]
+  
+  descricao String?
+  createdAt DateTime @default(now())
 }
 
 model Insumo {
