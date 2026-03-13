@@ -31,9 +31,10 @@ model Exame {
 model Insumo {
   id    Int    @id @default(autoincrement())
   nome  String
-
+  quantidade Int
   estoque      Estoque?
   exames       ExameInsumo[]
+  createAt DateTime @default(now())
 }
 
 //Controla a quantidade disponível.

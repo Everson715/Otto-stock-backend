@@ -1,7 +1,9 @@
 import {prisma} from "../../database/prisma";
+import {CreateInsumoDto} from "./dto/create-insumo.dto";
+import {UpdateInsumoDto} from "./dto/update-insumo.dto";
 
 export class InsumosService{
-    async create (data: any){
+    async create (data: CreateInsumoDto){
         return prisma.insumo.create({
             data
         });
@@ -17,7 +19,7 @@ export class InsumosService{
         });
     }
 
-    async update(id: number, data: any){
+    async update(id: number, data: UpdateInsumoDto){
         return prisma.insumo.update({
             where: {id},
             data

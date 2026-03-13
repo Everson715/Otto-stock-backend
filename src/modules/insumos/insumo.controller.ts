@@ -1,11 +1,14 @@
 import { Request,Response } from "express";
 import {InsumosService} from "./insumo.service";
+import {CreateInsumoDto} from "./dto/create-insumo.dto";
+import {UpdateInsumoDto} from "./dto/update-insumo.dto";
 
 const service = new InsumosService();
 
 export class InsumoController{
     async create(req:Request,res:Response){
-        const insumo = await service.create(req.body);
+        const data: CreateInsumoDto = req.body;
+        const insumo = await service.create(data);
         res.status(201).json(insumo);
     }
 
@@ -28,7 +31,8 @@ export class InsumoController{
 
     async update(req: Request, res: Response) {
         const id = Number(req.params.id);
-        const insumo = await service.update(id, req.body);
+        const data: UpdateInsumoDto = req.body;
+        const insumo = await service.update(id, data);
         return res.json(insumo);
         }
 }
