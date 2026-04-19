@@ -29,6 +29,7 @@ model Exame {
 model Insumo {
   id        Int      @id @default(autoincrement())
   nome      String
+  quantidadeMinima Int @default(0)
 
   createdAt DateTime @default(now())
 

@@ -9,8 +9,27 @@ export class InsumosService{
         });
     }
 
-    async findAll(){
-        return prisma.insumo.findMany();
+    async findAll(page: number = 1, limit: number = 10, nome?: string){
+        const skip = (page - 1) * limit;
+        const where = nome ? { nome: { contains: nome, mode: 'insensitive' as const } } : {};
+
+        const [items, total] = await Promise.all([
+            prisma.insumo.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { nome: 'asc' }
+            }),
+            prisma.insumo.count({ where })
+        ]);
+
+        return {
+            items,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
     }
 
     async findById(id: number){

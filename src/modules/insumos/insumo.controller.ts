@@ -1,20 +1,23 @@
 import { Request,Response } from "express";
 import {InsumosService} from "./insumo.service";
-import {CreateInsumoDto} from "./dto/create-insumo.dto";
-import {UpdateInsumoDto} from "./dto/update-insumo.dto";
+import { createInsumoSchema, updateInsumoSchema } from "./dto/insumo.schema";
 
 const service = new InsumosService();
 
 export class InsumoController{
     async create(req:Request,res:Response){
-        const data: CreateInsumoDto = req.body;
+        const data = createInsumoSchema.parse(req.body);
         const insumo = await service.create(data);
         res.status(201).json(insumo);
     }
 
     async findAll(req:Request,res:Response){
-        const insumos = await service.findAll();
-        return res.json(insumos);
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const nome = req.query.nome as string;
+
+        const result = await service.findAll(page, limit, nome);
+        return res.json(result);
     }
 
     async findOne(req:Request,res:Response){
@@ -31,8 +34,8 @@ export class InsumoController{
 
     async update(req: Request, res: Response) {
         const id = Number(req.params.id);
-        const data: UpdateInsumoDto = req.body;
+        const data = updateInsumoSchema.parse(req.body);
         const insumo = await service.update(id, data);
         return res.json(insumo);
-        }
+    }
 }
