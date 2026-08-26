@@ -37,9 +37,11 @@ Este backend simula o funcionamento básico de um **sistema de logística clíni
 ```
 src
 │
-├── controllers
 ├── database
 │   └── prisma.ts
+│
+├── middlewares
+│   └── error-handler.ts
 │
 ├── modules
 │   ├── atendimentos
@@ -48,25 +50,43 @@ src
 │   │   ├── atendimento.service.ts
 │   │   └── atendimento.routes.ts
 │   │
+│   ├── estoque
+│   │   ├── dto
+│   │   ├── estoque.controller.ts
+│   │   ├── estoque.service.ts
+│   │   └── estoque.routes.ts
+│   │
+│   ├── exame-insumo
+│   │   ├── dto
+│   │   ├── exame-insumo.controller.ts
+│   │   ├── exame-insumo.service.ts
+│   │   └── exame-insumo.routes.ts
+│   │
 │   ├── exames
 │   │   ├── dto
-│   │   ├── exames.controller.ts
-│   │   ├── exames.service.ts
-│   │   └── exames.routes.ts
+│   │   ├── exame.controller.ts
+│   │   ├── exame.service.ts
+│   │   └── exame.routes.ts
 │   │
 │   ├── insumos
 │   │   ├── dto
-│   │   ├── insumos.controller.ts
-│   │   ├── insumos.service.ts
-│   │   └── insumos.routes.ts
+│   │   ├── insumo.controller.ts
+│   │   ├── insumo.service.ts
+│   │   └── insumo.routes.ts
 │   │
-│   └── estoque
-│       ├── dto
-│       ├── estoque.controller.ts
-│       ├── estoque.service.ts
-│       └── estoque.routes.ts
+│   ├── medicos
+│   │   ├── dto
+│   │   ├── medico.controller.ts
+│   │   ├── medico.service.ts
+│   │   └── medico.routes.ts
+│   │
+│   └── relatorios
+│       ├── relatorio.controller.ts
+│       ├── relatorio.service.ts
+│       └── relatorio.routes.ts
 │
-└── routes.ts
+├── routes.ts
+└── server.ts
 ```
 
 ---
@@ -204,88 +224,78 @@ http://localhost:3000
 
 ## Insumos
 
-Criar insumo
-
 ```
 POST /insumos
-```
-
-Listar insumos
-
-```
 GET /insumos
+GET /insumos/:id
+PUT /insumos/:id
+DELETE /insumos/:id
 ```
 
 ---
 
 ## Exames
 
-Criar exame
-
 ```
 POST /exames
+GET /exames
+GET /exames/:id
+PUT /exames/:id
+DELETE /exames/:id
 ```
 
-Associar insumo a exame
+---
+
+## Exame-Insumos (Associação)
 
 ```
-POST /exames/insumos
+POST /exame-insumos
+GET /exame-insumos
+GET /exame-insumos/exame/:exameId
+DELETE /exame-insumos/:id
 ```
 
 ---
 
 ## Estoque
 
-Entrada de estoque
-
 ```
 POST /estoque/entrada
-```
-
-Saída de estoque
-
-```
 POST /estoque/saida
-```
-
-Histórico de movimentações
-
-```
 GET /estoque/movimentacoes
+GET /estoque/saldo
 ```
 
 ---
 
 ## Atendimentos
 
-Criar atendimento
-
 ```
 POST /atendimentos
-```
-
-Listar atendimentos
-
-```
 GET /atendimentos
-```
-
-Buscar atendimento
-
-```
 GET /atendimentos/:id
-```
-
-Finalizar atendimento
-
-```
 PATCH /atendimentos/:id/finalizar
-```
-
-Cancelar atendimento
-
-```
 PATCH /atendimentos/:id/cancelar
+```
+
+---
+
+## Médicos
+
+```
+POST /medicos
+GET /medicos
+GET /medicos/:id
+PUT /medicos/:id
+DELETE /medicos/:id
+```
+
+---
+
+## Relatórios
+
+```
+GET /relatorios/dashboard
 ```
 
 ---
