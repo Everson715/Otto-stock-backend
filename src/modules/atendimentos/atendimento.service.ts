@@ -5,7 +5,6 @@ import { StatusAtendimento } from "@prisma/client"
 export class AtendimentoService {
 
   async finalizar(id: number) {
-
     const atendimento = await prisma.atendimento.findUnique({
       where: { id },
       include: {
@@ -21,53 +20,59 @@ export class AtendimentoService {
       throw new Error("Atendimento não encontrado")
     }
 
+    // Máquina de estados: só pode finalizar se estiver EM_ATENDIMENTO
+    if (atendimento.status !== "EM_ATENDIMENTO") {
+      throw new Error(`Não é possível finalizar um atendimento que está ${atendimento.status}`)
+    }
+
     const insumosDoExame = atendimento.exame.insumos
 
-    // Verificar estoque para todos os insumos antes de processar
-    for (const item of insumosDoExame) {
-      const movimentacoes = await prisma.movimentacaoEstoque.findMany({
-        where: { insumoId: item.insumoId }
-      })
-      const saldo = movimentacoes.reduce((acc, curr) => {
-        return curr.tipo === "ENTRADA" ? acc + curr.quantidade : acc - curr.quantidade
-      }, 0)
+    // Transação: garante que tudo seja executado de forma atômica
+    const atendimentoFinalizado = await prisma.$transaction(async (tx) => {
+      // 1. Validar estoques
+      for (const item of insumosDoExame) {
+        const movimentacoes = await tx.movimentacaoEstoque.findMany({
+          where: { insumoId: item.insumoId }
+        })
+        const saldo = movimentacoes.reduce((acc, curr) => {
+          return curr.tipo === "ENTRADA" ? acc + curr.quantidade : acc - curr.quantidade
+        }, 0)
 
-      if (saldo < item.quantidade) {
-        throw new Error("Estoque insuficiente para concluir o atendimento")
+        if (saldo < item.quantidade) {
+          throw new Error(`Estoque insuficiente para o insumo ID ${item.insumoId}. Necessário: ${item.quantidade}, Saldo: ${saldo}`)
+        }
       }
-    }
 
-    for (const item of insumosDoExame) {
+      // 2. Registrar movimentações de saída
+      for (const item of insumosDoExame) {
+        await tx.movimentacaoEstoque.create({
+          data: {
+            tipo: "SAIDA",
+            quantidade: item.quantidade,
+            insumoId: item.insumoId
+          }
+        })
+      }
 
-      await prisma.movimentacaoEstoque.create({
+      // 3. Atualizar status
+      return tx.atendimento.update({
+        where: { id },
         data: {
-          tipo: "SAIDA",
-          quantidade: item.quantidade,
-          insumoId: item.insumoId
+          status: "FINALIZADO"
         }
       })
-
-    }
-
-    const atendimentoFinalizado = await prisma.atendimento.update({
-      where: { id },
-      data: {
-        status: "FINALIZADO"
-      }
     })
 
     return atendimentoFinalizado
   }
 
   async create(data: CreateAtendimentoDto) {
-
     const atendimento = await prisma.atendimento.create({
       data: {
         medicoId: data.medicoId,
         exameId: data.exameId
       }
     })
-
     return atendimento
   }
 
@@ -99,7 +104,6 @@ export class AtendimentoService {
   }
 
   async findById(id: number) {
-
     return prisma.atendimento.findUnique({
       where: { id },
       include: {
@@ -107,10 +111,20 @@ export class AtendimentoService {
         exame: true
       }
     })
-
   }
 
   async cancelar(id: number) {
+    const atendimento = await prisma.atendimento.findUnique({
+      where: { id }
+    })
+
+    if (!atendimento) {
+      throw new Error("Atendimento não encontrado")
+    }
+
+    if (atendimento.status !== "EM_ATENDIMENTO") {
+      throw new Error(`Não é possível cancelar um atendimento que está ${atendimento.status}`)
+    }
 
     return prisma.atendimento.update({
       where: { id },
@@ -118,7 +132,6 @@ export class AtendimentoService {
         status: "CANCELADO"
       }
     })
-
   }
 
 }

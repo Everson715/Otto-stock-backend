@@ -7,6 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senha     String
+  perfil    Perfil   @default(ATENDENTE)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+enum Perfil {
+  ADMIN
+  ESTOQUISTA
+  ATENDENTE
+  GESTOR
+}
+
 model Medico {
   id     Int     @id @default(autoincrement())
   nome   String
