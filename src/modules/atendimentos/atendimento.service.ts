@@ -1,5 +1,4 @@
 import { prisma } from "../../database/prisma"
-import { CreateAtendimentoDto } from "./dto/create-atendimento.dto"
 import { StatusAtendimento } from "@prisma/client"
 
 export class AtendimentoService {
@@ -49,7 +48,8 @@ export class AtendimentoService {
           data: {
             tipo: "SAIDA",
             quantidade: item.quantidade,
-            insumoId: item.insumoId
+            insumoId: item.insumoId,
+            motivo: `Baixa automática pelo Atendimento #${id}`
           }
         })
       }
@@ -66,9 +66,10 @@ export class AtendimentoService {
     return atendimentoFinalizado
   }
 
-  async create(data: CreateAtendimentoDto) {
+  async create(data: { medicoId: number; exameId: number; pacienteId: number }) {
     const atendimento = await prisma.atendimento.create({
       data: {
+        pacienteId: data.pacienteId,
         medicoId: data.medicoId,
         exameId: data.exameId
       }

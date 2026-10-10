@@ -11,6 +11,8 @@ import relatorioRoutes from "./modules/relatorios/relatorio.routes";
 
 import { authMiddleware } from "./middlewares/auth.middleware";
 
+import pacienteRoutes from "./modules/pacientes/paciente.routes";
+
 const routes = Router();
 
 // Rotas públicas
@@ -19,6 +21,7 @@ routes.use("/auth", authRoutes);
 // Rotas protegidas (aplicar middleware globalmente a partir daqui)
 routes.use(authMiddleware);
 
+routes.use("/pacientes", pacienteRoutes);
 routes.use("/insumos", insumosRoutes);
 routes.use("/exames", exameRoutes);
 routes.use("/estoque", estoqueRoutes);

@@ -1,13 +1,19 @@
 import { Request, Response } from "express"
 import { AtendimentoService } from "./atendimento.service"
+import { createAtendimentoSchema } from "./dto/atendimento.schema"
 
 const service = new AtendimentoService()
 
 export class AtendimentoController {
 
-  async create(req: Request, res: Response) {
-    const atendimento = await service.create(req.body)
-    return res.status(201).json(atendimento)
+  async create(req: Request, res: Response, next: any) {
+    try {
+      const data = createAtendimentoSchema.parse(req.body)
+      const atendimento = await service.create(data)
+      return res.status(201).json(atendimento)
+    } catch (err) {
+      next(err)
+    }
   }
 
   async findAll(req: Request, res: Response) {

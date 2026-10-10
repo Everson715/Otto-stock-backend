@@ -8,7 +8,7 @@ export class MedicoService {
   }
 
   async findAll() {
-    return prisma.medico.findMany()
+    return prisma.medico.findMany({ where: { ativo: true } })
   }
 
   async findById(id: number) {
@@ -25,8 +25,9 @@ export class MedicoService {
   }
 
   async delete(id: number) {
-    return prisma.medico.delete({
-      where: { id }
+    return prisma.medico.update({
+      where: { id },
+      data: { ativo: false }
     })
   }
 }

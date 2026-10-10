@@ -10,7 +10,7 @@ export class ExameService {
         })
     }
     async findAll() {
-        return prisma.exame.findMany();
+        return prisma.exame.findMany({ where: { ativo: true } });
     }
     async findById(id: number) {
         return prisma.exame.findUnique({
@@ -24,8 +24,9 @@ export class ExameService {
         })
     }
     async delete(id: number) {
-        return prisma.exame.delete({
-            where: {id}
+        return prisma.exame.update({
+            where: {id},
+            data: { ativo: false }
         })
     }
 }

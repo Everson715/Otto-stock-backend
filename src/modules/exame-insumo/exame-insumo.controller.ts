@@ -25,4 +25,11 @@ export class ExameInsumoController {
     await service.delete(id)
     return res.status(204).send()
   }
+
+  async update(req: Request, res: Response) {
+    const id = Number(req.params.id)
+    const { quantidade } = req.body
+    const item = await service.update(id, quantidade)
+    return res.json(item)
+  }
 }

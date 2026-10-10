@@ -15,6 +15,8 @@ model Usuario {
   perfil    Perfil   @default(ATENDENTE)
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  movimentacoes MovimentacaoEstoque[]
 }
 
 enum Perfil {
@@ -24,18 +26,32 @@ enum Perfil {
   GESTOR
 }
 
+model Paciente {
+  id               Int      @id @default(autoincrement())
+  nome             String
+  cpf              String   @unique
+  dataNascimento   DateTime?
+  contato          String?
+  ativo            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  atendimentos     Atendimento[]
+}
+
 model Medico {
   id     Int     @id @default(autoincrement())
   nome   String
-  crm    String?
+  crm    String? @unique
+  ativo  Boolean @default(true)
 
   atendimentos Atendimento[]
 }
 
 model Exame {
   id          Int      @id @default(autoincrement())
-  nome        String
+  nome        String   @unique
   descricao   String?
+  ativo       Boolean  @default(true)
 
   createdAt   DateTime @default(now())
 
@@ -44,11 +60,12 @@ model Exame {
 }
 
 model Insumo {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  quantidadeMinima Int @default(0)
+  id               Int      @id @default(autoincrement())
+  nome             String   @unique
+  quantidadeMinima Int      @default(0)
+  ativo            Boolean  @default(true)
 
-  createdAt DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   exames         ExameInsumo[]
   movimentacoes  MovimentacaoEstoque[]
@@ -57,10 +74,14 @@ model Insumo {
 model MovimentacaoEstoque {
   id         Int      @id @default(autoincrement())
   tipo       TipoMovimentacao
+  motivo     String?  
   quantidade Int
 
   insumoId   Int
   insumo     Insumo   @relation(fields: [insumoId], references: [id])
+
+  usuarioId  Int?
+  usuario    Usuario? @relation(fields: [usuarioId], references: [id])
 
   createdAt  DateTime @default(now())
 }
@@ -68,6 +89,7 @@ model MovimentacaoEstoque {
 enum TipoMovimentacao {
   ENTRADA
   SAIDA
+  AJUSTE
 }
 
 model ExameInsumo {
@@ -79,20 +101,27 @@ model ExameInsumo {
 
   exame      Exame  @relation(fields: [exameId], references: [id])
   insumo     Insumo @relation(fields: [insumoId], references: [id])
+
+  @@unique([exameId, insumoId])
 }
 
 model Atendimento {
-  id       Int @id @default(autoincrement())
+  id         Int @id @default(autoincrement())
 
-  medicoId Int
-  exameId  Int
+  pacienteId Int
+  medicoId   Int
+  exameId    Int
 
-  status   StatusAtendimento @default(EM_ATENDIMENTO)
+  status     StatusAtendimento @default(EM_ATENDIMENTO)
 
-  criadoEm DateTime @default(now())
+  criadoEm   DateTime @default(now())
 
-  medico   Medico @relation(fields: [medicoId], references: [id])
-  exame    Exame  @relation(fields: [exameId], references: [id])
+  paciente   Paciente @relation(fields: [pacienteId], references: [id])
+  medico     Medico   @relation(fields: [medicoId], references: [id])
+  exame      Exame    @relation(fields: [exameId], references: [id])
+
+  @@index([status])
+  @@index([criadoEm])
 }
 
 enum StatusAtendimento {

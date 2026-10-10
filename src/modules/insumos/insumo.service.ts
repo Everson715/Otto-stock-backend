@@ -11,7 +11,10 @@ export class InsumosService{
 
     async findAll(page: number = 1, limit: number = 10, nome?: string){
         const skip = (page - 1) * limit;
-        const where = nome ? { nome: { contains: nome, mode: 'insensitive' as const } } : {};
+        const where: any = { ativo: true };
+        if (nome) {
+            where.nome = { contains: nome, mode: 'insensitive' };
+        }
 
         const [items, total] = await Promise.all([
             prisma.insumo.findMany({
@@ -34,7 +37,7 @@ export class InsumosService{
 
     async findById(id: number){
         return prisma.insumo.findUnique({
-            where: {id}
+            where: { id }
         });
     }
 
@@ -46,8 +49,9 @@ export class InsumosService{
     }
 
     async delete(id: number){
-        return prisma.insumo.delete({
-            where: {id}
+        return prisma.insumo.update({
+            where: {id},
+            data: { ativo: false }
         });
     }
 }

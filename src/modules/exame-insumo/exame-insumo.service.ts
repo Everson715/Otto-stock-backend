@@ -30,4 +30,11 @@ export class ExameInsumoService {
       where: { id }
     })
   }
+
+  async update(id: number, quantidade: number) {
+    return prisma.exameInsumo.update({
+      where: { id },
+      data: { quantidade }
+    })
+  }
 }
