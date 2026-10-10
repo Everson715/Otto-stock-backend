@@ -20,8 +20,12 @@ export class AtendimentoController {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const status = req.query.status as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+    const medicoId = req.query.medicoId ? Number(req.query.medicoId) : undefined;
+    const pacienteId = req.query.pacienteId ? Number(req.query.pacienteId) : undefined;
 
-    const result = await service.findAll(page, limit, status)
+    const result = await service.findAll({ page, limit, status, startDate, endDate, medicoId, pacienteId });
     return res.json(result)
   }
 

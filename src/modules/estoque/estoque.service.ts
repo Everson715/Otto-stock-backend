@@ -88,15 +88,42 @@ export class EstoqueService {
     })
   }
 
-  async historico() {
-    return prisma.movimentacaoEstoque.findMany({
-      include: {
-        insumo: true,
-        usuario: { select: { nome: true, email: true } }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
+  async historico(params: { page?: number, limit?: number, insumoId?: number, tipo?: string, startDate?: string, endDate?: string } = {}) {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params.insumoId) where.insumoId = params.insumoId;
+    if (params.tipo) where.tipo = params.tipo;
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
+      if (params.endDate) where.createdAt.lte = new Date(params.endDate);
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.movimentacaoEstoque.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          insumo: true,
+          usuario: { select: { nome: true, email: true } }
+        },
+        orderBy: {
+          createdAt: "desc"
+        }
+      }),
+      prisma.movimentacaoEstoque.count({ where })
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 }

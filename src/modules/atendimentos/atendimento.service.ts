@@ -77,9 +77,20 @@ export class AtendimentoService {
     return atendimento
   }
 
-  async findAll(page: number = 1, limit: number = 10, status?: string) {
+  async findAll(params: { page?: number, limit?: number, status?: string, startDate?: string, endDate?: string, medicoId?: number, pacienteId?: number }) {
+    const page = params.page || 1;
+    const limit = params.limit || 10;
     const skip = (page - 1) * limit;
-    const where = status ? { status: status as StatusAtendimento } : {};
+    
+    const where: any = {};
+    if (params.status) where.status = params.status as StatusAtendimento;
+    if (params.medicoId) where.medicoId = params.medicoId;
+    if (params.pacienteId) where.pacienteId = params.pacienteId;
+    if (params.startDate || params.endDate) {
+      where.criadoEm = {};
+      if (params.startDate) where.criadoEm.gte = new Date(params.startDate);
+      if (params.endDate) where.criadoEm.lte = new Date(params.endDate);
+    }
 
     const [items, total] = await Promise.all([
       prisma.atendimento.findMany({
@@ -87,6 +98,7 @@ export class AtendimentoService {
         skip,
         take: limit,
         include: {
+          paciente: true,
           medico: true,
           exame: true
         },

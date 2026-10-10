@@ -25,7 +25,14 @@ export class EstoqueController {
   }
 
   async historico(req: Request, res: Response) {
-    const movimentacoes = await service.historico()
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const insumoId = req.query.insumoId ? Number(req.query.insumoId) : undefined;
+    const tipo = req.query.tipo as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+
+    const movimentacoes = await service.historico({ page, limit, insumoId, tipo, startDate, endDate });
     return res.json(movimentacoes)
   }
 

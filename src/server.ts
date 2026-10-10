@@ -26,7 +26,11 @@ app.use(limiter);
 // Limite do tamanho do corpo da requisição para evitar ataques
 app.use(express.json({ limit: '1mb' })); 
 
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
+
 // Rotas da API
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(router);
 
 // Handler global de erros (deve ser o último)
