@@ -1,0 +1,28 @@
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: .
+      target: builder
+    command: npm run dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+
+  web:
+    build:
+      context: ../Otto-stock-frontend/otto-stock-web
+      target: builder
+    command: npm run dev -- --host
+    volumes:
+      - ../Otto-stock-frontend/otto-stock-web:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"

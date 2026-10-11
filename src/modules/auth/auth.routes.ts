@@ -1,8 +1,15 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
+import rateLimit from "express-rate-limit";
 
 const router = Router();
 const controller = new AuthController();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: true, message: "Muitas tentativas de login. Tente novamente mais tarde." }
+});
 
 /**
  * @swagger
@@ -27,18 +34,6 @@ const controller = new AuthController();
  *       401:
  *         description: Credenciais inválidas
  */
-router.post("/login", controller.login);
-
-/**
- * @swagger
- * /auth/setup-admin:
- *   post:
- *     summary: Cria o primeiro administrador do sistema
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Admin criado
- */
-router.post("/setup-admin", controller.setupAdmin); 
+router.post("/login", loginLimiter, controller.login);
 
 export default router;
