@@ -1,7 +1,6 @@
 {
   "name": "otto-stock-backend",
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
@@ -16,11 +15,8 @@
     "@types/supertest": "^7.2.1",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
-    "prisma": "^5.22.0",
     "supertest": "^7.3.1",
-    "swagger-jsdoc": "^6.3.0",
     "ts-node-dev": "^2.0.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3",
     "vitest-mock-extended": "^5.1.1"
@@ -33,7 +29,10 @@
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "prisma": "^5.22.0",
+    "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
   "prisma": {
