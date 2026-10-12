@@ -1,9 +1,9 @@
 # Estágio 1: Build
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências para o build (incluindo devDependencies)
 COPY package*.json ./
@@ -20,11 +20,11 @@ RUN npx tsc
 RUN npm prune --omit=dev
 
 # Estágio 2: Produção
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apt-get update -y && apt-get install -y openssl ca-certificates curl wget && rm -rf /var/lib/apt/lists/*
 
 # Copiar arquivos necessários do builder
 COPY package*.json ./
@@ -46,3 +46,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 ENTRYPOINT ["./entrypoint.sh"]
+
