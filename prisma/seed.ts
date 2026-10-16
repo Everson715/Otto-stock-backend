@@ -21,7 +21,7 @@ async function main() {
       nome: "Administrador do Sistema",
       email: email,
       senha: hashedPassword,
-      perfil: "ADMIN"
+      perfis: ["ADMIN"]
     }
   });
 

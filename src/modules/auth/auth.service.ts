@@ -23,7 +23,8 @@ export class AuthService {
     const token = jwt.sign(
       {
         id: usuario.id,
-        perfil: usuario.perfil
+        perfis: usuario.perfis,
+        perfil: usuario.perfis[0]
       },
       secret,
       { expiresIn: "8h" }
@@ -34,7 +35,8 @@ export class AuthService {
         id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
-        perfil: usuario.perfil
+        perfis: usuario.perfis,
+        perfil: usuario.perfis[0]
       },
       token
     };
@@ -43,7 +45,7 @@ export class AuthService {
   // Apenas para facilitar a criação inicial de um admin
   async createInitialAdmin() {
     const adminExists = await prisma.usuario.findFirst({
-      where: { perfil: "ADMIN" }
+      where: { perfis: { has: "ADMIN" } }
     });
 
     if (adminExists) {
@@ -57,7 +59,7 @@ export class AuthService {
         nome: "Administrador do Sistema",
         email: "admin@clinica.com",
         senha: senhaHash,
-        perfil: "ADMIN"
+        perfis: ["ADMIN"]
       }
     });
 

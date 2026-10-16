@@ -3,7 +3,8 @@ import jwt from "jsonwebtoken";
 
 interface Payload {
   id: number;
-  perfil: string;
+  perfis?: string[];
+  perfil?: string;
 }
 
 // Extender o objeto Request do Express para incluir o usuário
@@ -46,14 +47,24 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
   });
 };
 
-// Middleware opcional para restrição de perfil (RBAC)
+// Middleware para restrição de perfil (RBAC) com suporte a múltiplos perfis por usuário
 export const roleMiddleware = (perfisPermitidos: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.usuario) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
-    if (!perfisPermitidos.includes(req.usuario.perfil)) {
+    const usuarioPerfis = Array.isArray(req.usuario.perfis)
+      ? req.usuario.perfis
+      : req.usuario.perfil
+        ? [req.usuario.perfil]
+        : [];
+
+    const possuiPermissao = usuarioPerfis.some((perfil) =>
+      perfisPermitidos.includes(perfil)
+    );
+
+    if (!possuiPermissao) {
       return res.status(403).json({ error: "Acesso negado: perfil sem permissão" });
     }
 
