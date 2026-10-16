@@ -33,15 +33,17 @@ app.use(limiter);
 // Limite do tamanho do corpo da requisição para evitar ataques
 app.use(express.json({ limit: '1mb' })); 
 
-// Rota de Health Check
-app.get('/api/health', async (req, res) => {
+// Rota de Health Check (pública, leve)
+const healthHandler = async (_req: express.Request, res: express.Response) => {
     try {
         await prisma.$queryRaw`SELECT 1`;
         res.status(200).json({ status: 'ok', database: 'connected' });
     } catch (err) {
         res.status(500).json({ status: 'error', database: 'disconnected' });
     }
-});
+};
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // Documentação
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

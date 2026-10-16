@@ -85,4 +85,33 @@ describe('EstoqueService', () => {
       });
     });
   });
+
+  describe('getResumo', () => {
+    it('deve consolidar itens ativos, abaixo do mínimo e movimentações do período', async () => {
+      (prisma.insumo.findMany as any).mockResolvedValue([
+        { id: 1, nome: 'Seringa 5ml', unidade: 'un', quantidadeMinima: 10, ativo: true },
+        { id: 2, nome: 'Luva Látex', unidade: 'cx', quantidadeMinima: 20, ativo: true }
+      ]);
+
+      (prisma.movimentacaoEstoque.findMany as any)
+        .mockResolvedValueOnce([
+          { insumoId: 1, tipo: 'ENTRADA', quantidade: 15 },
+          { insumoId: 2, tipo: 'ENTRADA', quantidade: 5 }
+        ])
+        .mockResolvedValueOnce([
+          { insumoId: 1, tipo: 'ENTRADA', quantidade: 15 },
+          { insumoId: 2, tipo: 'SAIDA', quantidade: 3 }
+        ]);
+
+      const resumo = await service.getResumo({ de: '2026-10-01', ate: '2026-10-31' });
+
+      expect(resumo).toEqual({
+        itensAtivos: 2,
+        abaixoDoMinimo: 1,
+        entradasPeriodo: { registros: 1, quantidadeTotal: 15 },
+        saidasPeriodo: { registros: 1, quantidadeTotal: 3 },
+        ajustesPeriodo: 0
+      });
+    });
+  });
 });

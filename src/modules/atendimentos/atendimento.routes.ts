@@ -25,6 +25,7 @@ router.post("/", controller.create)
  *       - bearerAuth: []
  */
 router.get("/", controller.findAll)
+router.get("/resumo", controller.resumo)
 router.get("/:id", controller.findById)
 
 /**

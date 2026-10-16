@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 import { AtendimentoService } from "./atendimento.service"
-import { createAtendimentoSchema } from "./dto/atendimento.schema"
+import { createAtendimentoSchema, cancelarAtendimentoSchema } from "./dto/atendimento.schema"
 
 const service = new AtendimentoService()
 
@@ -29,6 +29,12 @@ export class AtendimentoController {
     return res.json(result)
   }
 
+  async resumo(req: Request, res: Response) {
+    const data = req.query.data as string | undefined;
+    const result = await service.getResumo(data);
+    return res.json(result);
+  }
+
   async findById(req: Request, res: Response) {
     const id = Number(req.params.id)
     const atendimento = await service.findById(id)
@@ -37,13 +43,15 @@ export class AtendimentoController {
 
   async finalizar(req: Request, res: Response) {
     const id = Number(req.params.id)
-    const atendimento = await service.finalizar(id)
+    const atendimento = await service.finalizar(id, req.usuario?.id)
     return res.json(atendimento)
   }
 
   async cancelar(req: Request, res: Response) {
     const id = Number(req.params.id)
-    const atendimento = await service.cancelar(id)
+    const parsed = cancelarAtendimentoSchema.safeParse(req.body || {})
+    const motivo = parsed.success ? (parsed.data.motivo || parsed.data.motivoCancelamento) : undefined
+    const atendimento = await service.cancelar(id, motivo)
     return res.json(atendimento)
   }
 

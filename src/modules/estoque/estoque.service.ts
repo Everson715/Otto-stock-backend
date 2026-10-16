@@ -36,11 +36,64 @@ export class EstoqueService {
       return {
         id: insumo.id,
         nome: insumo.nome,
+        sku: insumo.sku,
+        unidade: insumo.unidade,
+        categoria: insumo.categoria,
+        fabricante: insumo.fabricante,
         saldo,
         quantidadeMinima: insumo.quantidadeMinima,
         alerta: saldo <= insumo.quantidadeMinima
       }
     })
+  }
+
+  async getResumo(params: { de?: string; ate?: string } = {}) {
+    const posicao = await this.getPosicaoEstoque();
+    const itensAtivos = posicao.length;
+    const abaixoDoMinimo = posicao.filter(item => item.saldo < item.quantidadeMinima || item.saldo <= 0).length;
+
+    const whereMov: any = {};
+    if (params.de || params.ate) {
+      whereMov.createdAt = {};
+      if (params.de) whereMov.createdAt.gte = new Date(params.de);
+      if (params.ate) whereMov.createdAt.lte = new Date(params.ate);
+    }
+
+    const movimentacoesPeriodo = await prisma.movimentacaoEstoque.findMany({
+      where: whereMov
+    });
+
+    let totalEntradas = 0;
+    let quantidadeEntradas = 0;
+    let totalSaidas = 0;
+    let quantidadeSaidas = 0;
+    let totalAjustes = 0;
+
+    for (const mov of movimentacoesPeriodo) {
+      if (mov.tipo === "ENTRADA") {
+        totalEntradas += 1;
+        quantidadeEntradas += mov.quantidade;
+      } else if (mov.tipo === "SAIDA") {
+        totalSaidas += 1;
+        quantidadeSaidas += mov.quantidade;
+      } else if (mov.tipo === "AJUSTE") {
+        totalAjustes += 1;
+      }
+    }
+
+    return {
+      itensAtivos,
+      abaixoDoMinimo,
+      entradasPeriodo: {
+        registros: totalEntradas,
+        quantidadeTotal: quantidadeEntradas
+      },
+      saidasPeriodo: {
+        registros: totalSaidas,
+        quantidadeTotal: quantidadeSaidas
+      },
+      ajustesPeriodo: totalAjustes
+    };
   }
 
   async entrada(data: MovimentacaoParams) {
@@ -109,7 +162,8 @@ export class EstoqueService {
         take: limit,
         include: {
           insumo: true,
-          usuario: { select: { nome: true, email: true } }
+          usuario: { select: { nome: true, email: true } },
+          atendimento: { select: { id: true, status: true, criadoEm: true, finalizadoEm: true } }
         },
         orderBy: {
           createdAt: "desc"

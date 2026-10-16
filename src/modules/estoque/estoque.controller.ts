@@ -40,4 +40,11 @@ export class EstoqueController {
     const posicao = await service.getPosicaoEstoque()
     return res.json(posicao)
   }
+
+  async resumo(req: Request, res: Response) {
+    const de = (req.query.de || req.query.startDate) as string | undefined;
+    const ate = (req.query.ate || req.query.endDate) as string | undefined;
+    const result = await service.getResumo({ de, ate });
+    return res.json(result);
+  }
 }

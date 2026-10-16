@@ -49,12 +49,14 @@ model Medico {
 }
 
 model Exame {
-  id          Int      @id @default(autoincrement())
-  nome        String   @unique
-  descricao   String?
-  ativo       Boolean  @default(true)
+  id           Int      @id @default(autoincrement())
+  nome         String   @unique
+  descricao    String?
+  codigo       String?  @unique
+  departamento String?
+  ativo        Boolean  @default(true)
 
-  createdAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   insumos      ExameInsumo[]
   atendimentos Atendimento[]
@@ -63,6 +65,10 @@ model Exame {
 model Insumo {
   id               Int      @id @default(autoincrement())
   nome             String   @unique
+  sku              String?  @unique
+  unidade          String   @default("un")
+  categoria        String?
+  fabricante       String?
   quantidadeMinima Int      @default(0)
   ativo            Boolean  @default(true)
 
@@ -73,18 +79,25 @@ model Insumo {
 }
 
 model MovimentacaoEstoque {
-  id         Int      @id @default(autoincrement())
-  tipo       TipoMovimentacao
-  motivo     String?  
-  quantidade Int
+  id            Int      @id @default(autoincrement())
+  tipo          TipoMovimentacao
+  motivo        String?  
+  quantidade    Int
 
-  insumoId   Int
-  insumo     Insumo   @relation(fields: [insumoId], references: [id])
+  insumoId      Int
+  insumo        Insumo   @relation(fields: [insumoId], references: [id])
 
-  usuarioId  Int?
-  usuario    Usuario? @relation(fields: [usuarioId], references: [id])
+  usuarioId     Int?
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id])
 
-  createdAt  DateTime @default(now())
+  atendimentoId Int?
+  atendimento   Atendimento? @relation(fields: [atendimentoId], references: [id])
+
+  createdAt     DateTime @default(now())
+
+  @@index([insumoId])
+  @@index([createdAt])
+  @@index([atendimentoId])
 }
 
 enum TipoMovimentacao {
@@ -107,19 +120,24 @@ model ExameInsumo {
 }
 
 model Atendimento {
-  id         Int @id @default(autoincrement())
+  id                 Int @id @default(autoincrement())
 
-  pacienteId Int
-  medicoId   Int
-  exameId    Int
+  pacienteId         Int
+  medicoId           Int
+  exameId            Int
 
-  status     StatusAtendimento @default(EM_ATENDIMENTO)
+  status             StatusAtendimento @default(EM_ATENDIMENTO)
+  observacoes        String?
+  finalizadoEm       DateTime?
+  canceladoEm        DateTime?
+  motivoCancelamento String?
 
-  criadoEm   DateTime @default(now())
+  criadoEm           DateTime @default(now())
 
-  paciente   Paciente @relation(fields: [pacienteId], references: [id])
-  medico     Medico   @relation(fields: [medicoId], references: [id])
-  exame      Exame    @relation(fields: [exameId], references: [id])
+  paciente           Paciente @relation(fields: [pacienteId], references: [id])
+  medico             Medico   @relation(fields: [medicoId], references: [id])
+  exame              Exame    @relation(fields: [exameId], references: [id])
+  movimentacoes      MovimentacaoEstoque[]
 
   @@index([status])
   @@index([criadoEm])

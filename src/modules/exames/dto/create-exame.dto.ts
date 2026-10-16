@@ -1,6 +1,6 @@
 export interface CreateExameDto {
     nome: string;
-    descricao: string;
-    quantidade: number;
-    unidade: string;
+    descricao?: string;
+    codigo?: string;
+    departamento?: string;
 }

@@ -15,10 +15,19 @@ export class ExameController {
         const exames = await service.findAll();
         return res.json(exames);
     }
-     async findOne(req: Request, res: Response) {
+    async findOne(req: Request, res: Response) {
         const id = Number(req.params.id)
         const exame = await service.findById(id);
         return res.json(exame)
+    }
+    async disponibilidade(req: Request, res: Response, next: any) {
+        try {
+            const id = Number(req.params.id);
+            const result = await service.getDisponibilidade(id);
+            return res.json(result);
+        } catch (err) {
+            next(err);
+        }
     }
     async update(req: Request, res: Response) {
         const id = Number(req.params.id);
