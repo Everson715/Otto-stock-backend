@@ -138,21 +138,34 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /pacientes`
-- **Descrição:** Retorna todos os pacientes ativos cadastrados ordenados alfabeticamente por nome.
-- **Paginação / Filtros:** Sem paginação no momento (retorna lista completa).
-- **Resposta (`200 OK`):**
+- **Descrição:** Lista pacientes ativos ordenados alfabeticamente por `nome ASC`.
+- **Query Parameters (Opcionais — Transição Retrocompatível Passo 1):**
+  - `page` (inteiro `>= 1`, default: `1` quando envelope ativo)
+  - `limit` (inteiro entre `1` e `100`, default: `10` quando envelope ativo)
+  - `search` (string, busca parcial *case-insensitive* por `nome` ou `cpf`, ignorando máscara/pontuação quando houver dígitos)
+  - Valores de `page` `< 1` ou `limit` fora de `1..100` retornam `400 Bad Request`.
+- **Regra de Resposta (`200 OK`):**
+  - **Com `page`, `limit` ou `search` na query string:** retorna o envelope paginado `{ items, total, page, limit, totalPages }`.
+  - **Sem nenhum dos três parâmetros:** mantém temporariamente o array legado `Paciente[]` para compatibilidade com seletores ainda não migrados.
+- **Exemplo de Resposta Paginada (`GET /pacientes?page=1&limit=10&search=Maria`):**
   ```json
-  [
-    {
-      "id": 1,
-      "nome": "Maria de Souza",
-      "cpf": "12345678901",
-      "dataNascimento": "1985-05-20T00:00:00.000Z",
-      "contato": "(11) 98765-4321",
-      "ativo": true,
-      "createdAt": "2026-10-12T20:00:00.000Z"
-    }
-  ]
+  {
+    "items": [
+      {
+        "id": 1,
+        "nome": "Maria de Souza",
+        "cpf": "12345678901",
+        "dataNascimento": "1985-05-20T00:00:00.000Z",
+        "contato": "(11) 98765-4321",
+        "ativo": true,
+        "createdAt": "2026-10-12T20:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
   ```
 
 #### `GET /pacientes/:id`
@@ -369,9 +382,15 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /medicos`
-- **Descrição:** Lista todos os médicos ativos.
-- **Paginação / Filtros:** Sem paginação (retorna array de todos os ativos, incluindo `"especialidade": string | null`).
-- **Resposta (`200 OK`):** `Medico[]`
+- **Descrição:** Lista médicos ativos ordenados alfabeticamente por `nome ASC` (incluindo `"especialidade": string | null`).
+- **Query Parameters (Opcionais — Transição Retrocompatível Passo 1):**
+  - `page` (inteiro `>= 1`, default: `1` quando envelope ativo)
+  - `limit` (inteiro entre `1` e `100`, default: `10` quando envelope ativo)
+  - `search` (string, busca parcial *case-insensitive* por `nome`, `crm` ou `especialidade`)
+  - Valores de `page` `< 1` ou `limit` fora de `1..100` retornam `400 Bad Request`.
+- **Regra de Resposta (`200 OK`):**
+  - **Com `page`, `limit` ou `search` na query string:** retorna `{ items, total, page, limit, totalPages }`.
+  - **Sem nenhum dos três parâmetros:** mantém temporariamente o array legado `Medico[]`.
 
 #### `GET /medicos/:id`
 - **Descrição:** Busca médico por ID (inclui `"especialidade": string | null`).
@@ -666,7 +685,7 @@ Abaixo estão listadas as divergências e ausências identificadas na API atual 
 
 1. **Inconsistência de Paginação entre Módulos:**
    - Os módulos `/insumos`, `/estoque/movimentacoes` e `/atendimentos` implementam paginação padrão com o formato `{ items, total, page, limit, totalPages }`.
-   - Já os módulos `/pacientes`, `/medicos`, `/exames` e `/exame-insumos` **não possuem paginação**, retornando diretamente um array JSON com todos os registros ativos. O frontend deve tratar essa diferença ao renderizar tabelas e listagens.
+   - Os módulos `/pacientes` e `/medicos` implementam o **Passo 1 (retrocompatível)**: retornam `{ items, total, page, limit, totalPages }` quando qualquer um entre `page`, `limit` ou `search` é informado na query string, e mantêm o array legado quando nenhum dos três é enviado. Já `/exames` e `/exame-insumos` retornam diretamente um array JSON.
 
 2. **Ausência de Endpoint de Saldo Consolidado Individual:**
    - A rota `GET /estoque/saldo` calcula e retorna em memória a lista de saldo de **todos** os insumos ativos de uma só vez.
@@ -676,8 +695,8 @@ Abaixo estão listadas as divergências e ausências identificadas na API atual 
    - **Nomenclatura do Estoque Mínimo:** O campo no banco e na API chama-se `quantidadeMinima` e não `estoqueMinimo`.
    - **Unidade de Medida (`UnidadeMedida`):** O modelo `Insumo` possui o campo `unidade` tipado pelo enum `UnidadeMedida` (`UN`, `CX`, `AMPOLA`, `FRASCO`, `ML`, `PAR`, `PACOTE`, `ROLO`, `KIT`, `NAO_INFORMADA`). Registros legados migrados recebem `NAO_INFORMADA`, enquanto novos cadastros via `POST /insumos` exigem uma unidade de negócio válida.
 
-4. **Filtros e Busca em Pacientes e Médicos:**
-   - `GET /pacientes` e `GET /medicos` não aceitam query parameters de filtro por nome, CPF ou CRM. A filtragem de busca por texto na tela de pacientes/médicos precisa ser feita no cliente (client-side) após receber a lista completa.
+4. **Filtros e Busca em Pacientes e Médicos (Transição Passo 1):**
+   - `GET /pacientes` e `GET /medicos` suportam `page`, `limit` (`1..100`) e `search` (busca *case-insensitive* por `nome`/`cpf` em pacientes e por `nome`/`crm`/`especialidade` em médicos), ativando o envelope paginado quando qualquer um desses parâmetros é enviado.
 
 5. **Payload de Exames Mais Realizados no Dashboard:**
    - No retorno de `GET /relatorios/dashboard`, o campo `examesMaisRealizados` retorna apenas o agrupamento bruto `{ exameId: number, _count: { id: number } }`, sem o nome ou descrição do exame. O frontend precisa fazer o cruzamento com a lista de exames obtida em `GET /exames` para exibir os nomes nos gráficos/cards.

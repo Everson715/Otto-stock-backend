@@ -17,6 +17,48 @@ export class PacienteService {
     });
   }
 
+  async findAllPaginated(params: { page: number; limit: number; search?: string }) {
+    const { page, limit, search } = params;
+    const skip = (page - 1) * limit;
+    const where: any = { ativo: true };
+
+    const trimmed = search?.trim();
+    if (trimmed) {
+      const unaccented = trimmed.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cpfDigits = trimmed.replace(/\D/g, "");
+
+      const orConditions: any[] = [
+        { nome: { contains: trimmed, mode: "insensitive" } },
+      ];
+      if (unaccented && unaccented !== trimmed) {
+        orConditions.push({ nome: { contains: unaccented, mode: "insensitive" } });
+      }
+      if (cpfDigits.length > 0) {
+        orConditions.push({ cpf: { contains: cpfDigits } });
+      }
+
+      where.OR = orConditions;
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.paciente.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { nome: "asc" },
+      }),
+      prisma.paciente.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findById(id: number) {
     return prisma.paciente.findUnique({ 
       where: { id } 

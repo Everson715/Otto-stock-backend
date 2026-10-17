@@ -196,5 +196,72 @@ describe("Módulo Médicos - Campo especialidade (Seção 1)", () => {
       const singleResult = await atendimentoService.findById(1);
       expect(singleResult?.medico.especialidade).toBe("Endocrinologia");
     });
+
+    it("GET /api/medicos sem query params deve retornar array legado ordenado por nome ASC", async () => {
+      const app = makeApp();
+      const token = makeToken(["ATENDENTE"]);
+
+      const mockList = [
+        { id: 1, nome: "Dr. Alberto", crm: "111/SP", especialidade: "Clínica Geral", ativo: true },
+        { id: 2, nome: "Dra. Beatriz", crm: "222/SP", especialidade: "Cardiologia", ativo: true },
+      ];
+      (prisma.medico.findMany as any).mockResolvedValue(mockList);
+
+      const res = await request(app)
+        .get("/api/medicos")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toEqual(mockList);
+      expect(prisma.medico.findMany).toHaveBeenCalledWith({
+        where: { ativo: true },
+        orderBy: { nome: "asc" },
+      });
+    });
+
+    it("GET /api/medicos com page, limit ou search deve retornar envelope paginado e filtrar por nome, crm ou especialidade", async () => {
+      const app = makeApp();
+      const token = makeToken(["ADMIN"]);
+
+      (prisma.medico.findMany as any).mockResolvedValue([
+        { id: 2, nome: "Dra. Beatriz", crm: "222/SP", especialidade: "Cardiologia", ativo: true },
+      ]);
+      (prisma.medico.count as any).mockResolvedValue(15);
+
+      const resPage = await request(app)
+        .get("/api/medicos?page=1")
+        .set("Authorization", `Bearer ${token}`);
+      expect(resPage.status).toBe(200);
+      expect(resPage.body.totalPages).toBe(2);
+
+      const resLimit = await request(app)
+        .get("/api/medicos?limit=5")
+        .set("Authorization", `Bearer ${token}`);
+      expect(resLimit.status).toBe(200);
+      expect(resLimit.body.totalPages).toBe(3);
+
+      const resSearch = await request(app)
+        .get("/api/medicos?search=Cardio")
+        .set("Authorization", `Bearer ${token}`);
+      expect(resSearch.status).toBe(200);
+      expect(prisma.medico.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            ativo: true,
+            OR: [
+              { nome: { contains: "Cardio", mode: "insensitive" } },
+              { crm: { contains: "Cardio", mode: "insensitive" } },
+              { especialidade: { contains: "Cardio", mode: "insensitive" } },
+            ],
+          },
+        })
+      );
+
+      const badLimit = await request(app)
+        .get("/api/medicos?limit=150")
+        .set("Authorization", `Bearer ${token}`);
+      expect(badLimit.status).toBe(400);
+    });
   });
 });

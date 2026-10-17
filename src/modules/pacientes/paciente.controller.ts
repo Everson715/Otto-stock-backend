@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { PacienteService } from "./paciente.service";
-import { pacienteSchema } from "./dto/paciente.schema";
+import { pacienteSchema, pacientePaginationQuerySchema } from "./dto/paciente.schema";
 
 const service = new PacienteService();
 
@@ -12,8 +12,24 @@ export class PacienteController {
   }
 
   async findAll(req: Request, res: Response) {
-    const pacientes = await service.findAll();
-    return res.json(pacientes);
+    const hasPaginationOrSearch =
+      req.query.page !== undefined ||
+      req.query.limit !== undefined ||
+      req.query.search !== undefined;
+
+    if (!hasPaginationOrSearch) {
+      const pacientes = await service.findAll();
+      return res.json(pacientes);
+    }
+
+    const { page, limit } = pacientePaginationQuerySchema.parse({
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+
+    const result = await service.findAllPaginated({ page, limit, search });
+    return res.json(result);
   }
 
   async findOne(req: Request, res: Response) {

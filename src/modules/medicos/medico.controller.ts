@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 import { MedicoService } from "./medico.service"
-import { medicoSchema } from "./dto/medico.schema"
+import { medicoSchema, medicoPaginationQuerySchema } from "./dto/medico.schema"
 
 const service = new MedicoService()
 
@@ -12,8 +12,24 @@ export class MedicoController {
   }
 
   async findAll(req: Request, res: Response) {
-    const medicos = await service.findAll()
-    return res.json(medicos)
+    const hasPaginationOrSearch =
+      req.query.page !== undefined ||
+      req.query.limit !== undefined ||
+      req.query.search !== undefined
+
+    if (!hasPaginationOrSearch) {
+      const medicos = await service.findAll()
+      return res.json(medicos)
+    }
+
+    const { page, limit } = medicoPaginationQuerySchema.parse({
+      page: req.query.page,
+      limit: req.query.limit,
+    })
+    const search = typeof req.query.search === "string" ? req.query.search : undefined
+
+    const result = await service.findAllPaginated({ page, limit, search })
+    return res.json(result)
   }
 
   async findOne(req: Request, res: Response) {
