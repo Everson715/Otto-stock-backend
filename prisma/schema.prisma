@@ -111,6 +111,7 @@ model MovimentacaoEstoque {
 
   @@index([insumoId])
   @@index([createdAt])
+  @@index([createdAt, tipo])
   @@index([atendimentoId])
 }
 

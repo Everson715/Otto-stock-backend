@@ -686,6 +686,34 @@ Os perfis existentes definidos no enum `Perfil` são:
   }
   ```
 
+#### `GET /relatorios/movimentacoes-grafico`
+- **Descrição:** Retorna a série histórica diária agregada de movimentações de estoque (`ENTRADA`, `SAIDA` e `AJUSTE`) nos últimos `dias` dias contínuos no fuso fixo `America/Sao_Paulo` (com *zero-filling* nos dias sem movimentação).
+- **Perfis Permitidos (RBAC):** `ADMIN`, `ESTOQUISTA`, `GESTOR` (`ATENDENTE` recebe `403 Forbidden`).
+- **Query Parameters:**
+  - `dias` (inteiro opcional entre `1` e `90`, default: `7`). Valores fora do intervalo `[1, 90]` ou não inteiros retornam `400 Bad Request`.
+- **Resposta (`200 OK`):**
+  ```json
+  [
+    {
+      "data": "2026-10-11",
+      "entradasQtd": 120,
+      "saidasQtd": 45,
+      "ajustesLiquidoQtd": 0,
+      "totalOperacoes": 6
+    },
+    {
+      "data": "2026-10-12",
+      "entradasQtd": 0,
+      "saidasQtd": 0,
+      "ajustesLiquidoQtd": -2,
+      "totalOperacoes": 1
+    }
+  ]
+  ```
+- **Respostas de Erro:**
+  - `400 Bad Request`: Parâmetro `dias` inválido (fora de `1..90` ou não inteiro).
+  - `403 Forbidden`: `{"error": "Acesso negado: perfil sem permissão"}` (ex.: perfil `ATENDENTE`).
+
 ---
 
 ## 4. Lacunas Conhecidas e Recomendações para o Frontend
