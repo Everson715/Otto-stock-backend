@@ -6,6 +6,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(10),
   CORS_ORIGINS: z.string().default("*"),
+  RATE_LIMIT_MAX: z.preprocess(
+    (val) => (val === "" || val === undefined ? undefined : val),
+    z.coerce.number().int().positive().optional()
+  ),
 });
 
 const _env = envSchema.safeParse(process.env);

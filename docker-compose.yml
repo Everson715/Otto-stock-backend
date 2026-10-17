@@ -30,6 +30,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-}
     depends_on:
       db:
         condition: service_healthy

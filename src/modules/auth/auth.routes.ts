@@ -1,15 +1,11 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
-import rateLimit from "express-rate-limit";
+import { createLoginLimiter } from "../../middlewares/rate-limit.middleware";
 
 const router = Router();
 const controller = new AuthController();
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: true, message: "Muitas tentativas de login. Tente novamente mais tarde." }
-});
+const loginLimiter = createLoginLimiter();
 
 /**
  * @swagger

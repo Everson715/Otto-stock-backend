@@ -13,8 +13,8 @@ Este documento formaliza a especificação de interface da API REST do backend d
 - **Formato dos Dados:** `application/json` (UTF-8)
 - **CORS:** Habilitado para qualquer origem em ambiente de desenvolvimento (`*`), suportando requisições com header `Origin: http://localhost:5173`.
 - **Rate Limiting:**
-  - Geral: 100 requisições por janela de 15 minutos por IP.
-  - Login (`/auth/login`): 10 tentativas por janela de 15 minutos por IP.
+  - Geral: 600 requisições por janela de 15 minutos por usuário autenticado (ou IP se anônimo), configurável via `RATE_LIMIT_MAX` (mais folgado em desenvolvimento: 3000/15min).
+  - Login (`POST /auth/login`): 5 tentativas por minuto por IP + e-mail.
 
 ---
 
@@ -39,7 +39,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 
 #### `POST /auth/login`
 - **Autenticação:** Pública (não requer token).
-- **Rate Limit:** 10 requisições por 15 minutos.
+- **Rate Limit:** 5 requisições por minuto por IP + e-mail.
 - **Corpo da Requisição (JSON):**
   ```json
   {
