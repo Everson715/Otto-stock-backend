@@ -344,33 +344,36 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```json
   {
     "nome": "Dr. Fernando Rocha",
-    "crm": "123456/SP"
+    "crm": "123456/SP",
+    "especialidade": "Cardiologia"
   }
   ```
   - `nome`: string (mínimo 3 caracteres, obrigatório)
   - `crm`: string (opcional, único se informado)
+  - `especialidade`: string | null (opcional; aplica `trim`, aceita de 2 a 80 caracteres quando informado e converte `""` para `null`)
 - **Resposta (`201 Created`):**
   ```json
   {
     "id": 1,
     "nome": "Dr. Fernando Rocha",
     "crm": "123456/SP",
+    "especialidade": "Cardiologia",
     "ativo": true
   }
   ```
 
 #### `GET /medicos`
 - **Descrição:** Lista todos os médicos ativos.
-- **Paginação / Filtros:** Sem paginação (retorna array de todos os ativos).
+- **Paginação / Filtros:** Sem paginação (retorna array de todos os ativos, incluindo `"especialidade": string | null`).
 - **Resposta (`200 OK`):** `Medico[]`
 
 #### `GET /medicos/:id`
-- **Descrição:** Busca médico por ID.
+- **Descrição:** Busca médico por ID (inclui `"especialidade": string | null`).
 - **Resposta (`200 OK`):** Objeto `Medico` ou `404 Not Found` `{"message": "Médico não encontrado"}`.
 
 #### `PUT /medicos/:id`
 - **Descrição:** Atualiza dados do médico.
-- **Corpo da Requisição (JSON):** `{ "nome"?: string, "crm"?: string }`
+- **Corpo da Requisição (JSON):** `{ "nome"?: string, "crm"?: string, "especialidade"?: string | null }` (aplica `trim`, valida entre 2 e 80 caracteres e converte `""` em `null`).
 - **Resposta (`200 OK`):** Objeto `Medico` atualizado.
 
 #### `DELETE /medicos/:id`
@@ -566,6 +569,7 @@ Os perfis existentes definidos no enum `Perfil` são:
           "id": 1,
           "nome": "Dr. Fernando Rocha",
           "crm": "123456/SP",
+          "especialidade": "Cardiologia",
           "ativo": true
         },
         "exame": {
@@ -585,7 +589,7 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /atendimentos/:id`
-- **Descrição:** Busca atendimento por ID com detalhes de médico e exame.
+- **Descrição:** Busca atendimento por ID com detalhes de paciente, médico (incluindo `especialidade`) e exame.
 - **Resposta (`200 OK`):** Objeto `Atendimento` ou `null`.
 
 #### `PATCH /atendimentos/:id/finalizar`

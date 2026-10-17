@@ -1,7 +1,7 @@
 import { prisma } from "../../database/prisma"
 
 export class MedicoService {
-  async create(data: { nome: string, crm?: string }) {
+  async create(data: { nome: string; crm?: string; especialidade?: string | null }) {
     return prisma.medico.create({
       data
     })
@@ -17,7 +17,7 @@ export class MedicoService {
     })
   }
 
-  async update(id: number, data: { nome?: string, crm?: string }) {
+  async update(id: number, data: { nome?: string; crm?: string; especialidade?: string | null }) {
     return prisma.medico.update({
       where: { id },
       data

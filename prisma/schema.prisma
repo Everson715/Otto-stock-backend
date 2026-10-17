@@ -40,10 +40,11 @@ model Paciente {
 }
 
 model Medico {
-  id     Int     @id @default(autoincrement())
-  nome   String
-  crm    String? @unique
-  ativo  Boolean @default(true)
+  id            Int     @id @default(autoincrement())
+  nome          String
+  crm           String? @unique
+  especialidade String? @db.VarChar(80)
+  ativo         Boolean @default(true)
 
   atendimentos Atendimento[]
 }
