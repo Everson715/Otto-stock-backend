@@ -654,7 +654,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 > Requer `Authorization: Bearer <token>`.
 
 #### `GET /relatorios/dashboard`
-- **Descrição:** Dados consolidados para o painel principal da clínica.
+- **Descrição:** Dados consolidados para o painel principal da clínica, incluindo o nome do exame em `examesMaisRealizados` e os contadores agregados por status e do dia atual no fuso `America/Sao_Paulo`.
 - **Resposta (`200 OK`):**
   ```json
   {
@@ -663,17 +663,26 @@ Os perfis existentes definidos no enum `Perfil` são:
     "examesMaisRealizados": [
       {
         "exameId": 1,
+        "nome": "Hemograma Completo",
         "_count": {
           "id": 15
         }
       },
       {
         "exameId": 3,
+        "nome": "Glicemia em Jejum",
         "_count": {
           "id": 8
         }
       }
-    ]
+    ],
+    "atendimentosPorStatus": {
+      "emAtendimento": 5,
+      "finalizados": 34,
+      "cancelados": 3,
+      "finalizadosHoje": 12,
+      "protocolosDistintosHoje": 4
+    }
   }
   ```
 
@@ -698,8 +707,8 @@ Abaixo estão listadas as divergências e ausências identificadas na API atual 
 4. **Filtros e Busca em Pacientes e Médicos (Transição Passo 1):**
    - `GET /pacientes` e `GET /medicos` suportam `page`, `limit` (`1..100`) e `search` (busca *case-insensitive* por `nome`/`cpf` em pacientes e por `nome`/`crm`/`especialidade` em médicos), ativando o envelope paginado quando qualquer um desses parâmetros é enviado.
 
-5. **Payload de Exames Mais Realizados no Dashboard:**
-   - No retorno de `GET /relatorios/dashboard`, o campo `examesMaisRealizados` retorna apenas o agrupamento bruto `{ exameId: number, _count: { id: number } }`, sem o nome ou descrição do exame. O frontend precisa fazer o cruzamento com a lista de exames obtida em `GET /exames` para exibir os nomes nos gráficos/cards.
+5. **Payload de Exames Mais Realizados e Contadores no Dashboard:**
+   - O retorno de `GET /relatorios/dashboard` inclui `{ exameId, nome, _count: { id } }` em `examesMaisRealizados` e o objeto `atendimentosPorStatus` (`emAtendimento`, `finalizados`, `cancelados`, `finalizadosHoje` e `protocolosDistintosHoje` agregados no banco no fuso `America/Sao_Paulo`, sem truncamento em 100 registros).
 
 6. **Filtro de Insumos Críticos:**
    - A rota `GET /estoque/saldo` não aceita query param `apenasCriticos=true`. O frontend deve aplicar um filtro no client-side verificando o atributo booleano `item.alerta === true`.
