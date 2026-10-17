@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UsuarioService } from "./usuario.service";
+import { AuthService } from "../auth/auth.service";
 import { prisma } from "../../database/prisma";
 import { roleMiddleware } from "../../middlewares/auth.middleware";
 
@@ -16,9 +17,11 @@ vi.mock("../../database/prisma", () => ({
 
 describe("UsuarioService & Multi-Perfil RBAC", () => {
   let service: UsuarioService;
+  let authService: AuthService;
 
   beforeEach(() => {
     service = new UsuarioService();
+    authService = new AuthService();
     vi.clearAllMocks();
   });
 
@@ -98,4 +101,31 @@ describe("UsuarioService & Multi-Perfil RBAC", () => {
     expect(nextAdmin).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
   });
+
+  it("deve autenticar usuário criado via Prisma Studio com senha em texto puro e converter para bcrypt", async () => {
+    (prisma.usuario.findUnique as any).mockResolvedValue({
+      id: 10,
+      nome: "Usuário Studio",
+      email: "studio@clinica.com",
+      senha: "senha_plana_studio",
+      perfis: [],
+      ativo: true,
+      createdAt: new Date()
+    });
+    (prisma.usuario.update as any).mockResolvedValue({});
+
+    const res = await authService.login("studio@clinica.com", "senha_plana_studio");
+
+    expect(res.usuario.email).toBe("studio@clinica.com");
+    expect(res.usuario.perfis).toEqual(["ATENDENTE"]);
+    expect(prisma.usuario.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 10 },
+        data: {
+          senha: expect.stringMatching(/^\$2[aby]\$10\$/)
+        }
+      })
+    );
+  });
 });
+

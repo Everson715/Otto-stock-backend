@@ -6,7 +6,8 @@
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "studio": "prisma studio"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
