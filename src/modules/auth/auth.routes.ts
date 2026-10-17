@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
-import { createLoginLimiter } from "../../middlewares/rate-limit.middleware";
+import { createLoginLimiters } from "../../middlewares/rate-limit.middleware";
 
 const router = Router();
 const controller = new AuthController();
 
-const loginLimiter = createLoginLimiter();
+const loginLimiters = createLoginLimiters();
 
 /**
  * @swagger
@@ -30,6 +30,6 @@ const loginLimiter = createLoginLimiter();
  *       401:
  *         description: Credenciais inválidas
  */
-router.post("/login", loginLimiter, controller.login);
+router.post("/login", ...loginLimiters, controller.login);
 
 export default router;

@@ -22,15 +22,18 @@ services:
     build:
       context: .
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-clinica}?schema=public
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - TRUST_PROXY=${TRUST_PROXY:-1}
       - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-}
+      - RATE_LIMIT_ANON_MAX=${RATE_LIMIT_ANON_MAX:-}
+      - RATE_LIMIT_KEY_SECRET=${RATE_LIMIT_KEY_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

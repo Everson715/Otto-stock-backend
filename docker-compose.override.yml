@@ -1,0 +1,6 @@
+# Arquivo de override automático para desenvolvimento local.
+# Em produção, execute: docker compose -f docker-compose.yml up -d --build
+services:
+  api:
+    ports:
+      - "3000:3000"
