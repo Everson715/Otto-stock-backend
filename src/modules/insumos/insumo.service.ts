@@ -1,6 +1,7 @@
 import {prisma} from "../../database/prisma";
 import {CreateInsumoDto} from "./dto/create-insumo.dto";
 import {UpdateInsumoDto} from "./dto/update-insumo.dto";
+import {AtivoFilter} from "./dto/insumo.schema";
 
 export class InsumosService{
     async create (data: CreateInsumoDto){
@@ -9,9 +10,14 @@ export class InsumosService{
         });
     }
 
-    async findAll(page: number = 1, limit: number = 10, nome?: string){
+    async findAll(page: number = 1, limit: number = 10, nome?: string, ativo: AtivoFilter = "true"){
         const skip = (page - 1) * limit;
-        const where: any = { ativo: true };
+        const where: any = {};
+        if (ativo === "true") {
+            where.ativo = true;
+        } else if (ativo === "false") {
+            where.ativo = false;
+        }
         if (nome) {
             where.nome = { contains: nome, mode: 'insensitive' };
         }

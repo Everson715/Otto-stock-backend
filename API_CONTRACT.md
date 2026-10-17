@@ -197,11 +197,12 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /insumos`
-- **Descrição:** Lista insumos ativos com paginação e filtro por nome.
+- **Descrição:** Lista insumos com paginação e filtros por nome e status de ativação.
 - **Query Parameters:**
   - `page` (number, opcional, default: `1`)
   - `limit` (number, opcional, default: `10`)
   - `nome` (string, opcional, busca parcial case-insensitive)
+  - `ativo` (`"true"` | `"false"` | `"all"`, opcional, default: `"true"`). Qualquer valor fora de `true`, `false` ou `all` retorna `400 Bad Request`.
 - **Resposta (`200 OK`):**
   ```json
   {

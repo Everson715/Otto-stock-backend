@@ -12,3 +12,15 @@ export const createInsumoSchema = z.object({
 export const updateInsumoSchema = createInsumoSchema.partial().extend({
   ativo: z.boolean().optional(),
 });
+
+export const listInsumosQuerySchema = z.object({
+  ativo: z
+    .enum(["true", "false", "all"], {
+      message: "O parâmetro 'ativo' deve ser 'true', 'false' ou 'all'",
+    })
+    .optional()
+    .default("true"),
+});
+
+export type AtivoFilter = z.infer<typeof listInsumosQuerySchema>["ativo"];
+

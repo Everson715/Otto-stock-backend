@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import {InsumosService} from "./insumo.service";
-import { createInsumoSchema, updateInsumoSchema } from "./dto/insumo.schema";
+import { createInsumoSchema, updateInsumoSchema, listInsumosQuerySchema } from "./dto/insumo.schema";
 
 const service = new InsumosService();
 
@@ -14,9 +14,10 @@ export class InsumoController{
     async findAll(req:Request,res:Response){
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
-        const nome = req.query.nome as string;
+        const nome = req.query.nome as string | undefined;
+        const { ativo } = listInsumosQuerySchema.parse({ ativo: req.query.ativo });
 
-        const result = await service.findAll(page, limit, nome);
+        const result = await service.findAll(page, limit, nome, ativo);
         return res.json(result);
     }
 
