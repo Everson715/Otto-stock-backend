@@ -63,17 +63,30 @@ model Exame {
   atendimentos Atendimento[]
 }
 
+enum UnidadeMedida {
+  UN
+  CX
+  AMPOLA
+  FRASCO
+  ML
+  PAR
+  PACOTE
+  ROLO
+  KIT
+  NAO_INFORMADA
+}
+
 model Insumo {
-  id               Int      @id @default(autoincrement())
-  nome             String   @unique
-  sku              String?  @unique
-  unidade          String   @default("un")
+  id               Int           @id @default(autoincrement())
+  nome             String        @unique
+  sku              String?       @unique
+  unidade          UnidadeMedida
   categoria        String?
   fabricante       String?
-  quantidadeMinima Int      @default(0)
-  ativo            Boolean  @default(true)
+  quantidadeMinima Int           @default(0)
+  ativo            Boolean       @default(true)
 
-  createdAt        DateTime @default(now())
+  createdAt        DateTime      @default(now())
 
   exames         ExameInsumo[]
   movimentacoes  MovimentacaoEstoque[]

@@ -180,16 +180,19 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```json
   {
     "nome": "Agulha Descartável 25x7",
+    "unidade": "CX",
     "quantidadeMinima": 100
   }
   ```
   - `nome`: string (mínimo 3 caracteres, obrigatório, único)
+  - `unidade`: enum `UnidadeMedida` (**obrigatório** na criação; valores aceitos: `"UN"`, `"CX"`, `"AMPOLA"`, `"FRASCO"`, `"ML"`, `"PAR"`, `"PACOTE"`, `"ROLO"`, `"KIT"`. O valor de transição `"NAO_INFORMADA"` ou ausência do campo retorna `400 Bad Request`)
   - `quantidadeMinima`: inteiro >= 0 (opcional, default: `0`)
 - **Resposta (`201 Created`):**
   ```json
   {
     "id": 1,
     "nome": "Agulha Descartável 25x7",
+    "unidade": "CX",
     "quantidadeMinima": 100,
     "ativo": true,
     "createdAt": "2026-10-12T20:00:00.000Z"
@@ -210,6 +213,7 @@ Os perfis existentes definidos no enum `Perfil` são:
       {
         "id": 1,
         "nome": "Agulha Descartável 25x7",
+        "unidade": "CX",
         "quantidadeMinima": 100,
         "ativo": true,
         "createdAt": "2026-10-12T20:00:00.000Z"
@@ -223,15 +227,16 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /insumos/:id`
-- **Descrição:** Busca insumo por ID.
+- **Descrição:** Busca insumo por ID (inclui `unidade`).
 - **Resposta (`200 OK`):** Objeto `Insumo` ou `null` se não existir.
 
 #### `PUT /insumos/:id`
-- **Descrição:** Atualiza dados do insumo.
+- **Descrição:** Atualiza dados do insumo (`unidade` é opcional na atualização; se enviada, deve ser um valor de negócio válido do enum `UnidadeMedida`).
 - **Corpo da Requisição (JSON):**
   ```json
   {
     "nome": "Agulha Descartável 25x7 alterada",
+    "unidade": "UN",
     "quantidadeMinima": 150
   }
   ```
@@ -313,11 +318,11 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```
 
 #### `GET /exame-insumos`
-- **Descrição:** Lista todas as associações existentes com os objetos aninhados `exame` e `insumo`.
+- **Descrição:** Lista todas as associações existentes com os objetos aninhados `exame` e `insumo` (incluindo `insumo.unidade`).
 - **Resposta (`200 OK`):** `ExameInsumo[]`
 
 #### `GET /exame-insumos/exame/:exameId`
-- **Descrição:** Lista todos os insumos necessários para o exame especificado (com objeto `insumo` aninhado).
+- **Descrição:** Lista todos os insumos necessários para o exame especificado (com objeto `insumo` aninhado, incluindo `insumo.unidade`).
 - **Resposta (`200 OK`):** `ExameInsumo[]`
 
 #### `PUT /exame-insumos/:id`
@@ -445,7 +450,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 - **Resposta (`201 Created`):** Objeto `MovimentacaoEstoque` (com `tipo: "AJUSTE"`).
 
 #### `GET /estoque/saldo`
-- **Descrição:** Retorna a posição de estoque calculada para cada insumo ativo, indicando se atingiu nível crítico (`alerta`).
+- **Descrição:** Retorna a posição de estoque calculada para cada insumo ativo, indicando a unidade de medida (`unidade`) e se atingiu nível crítico (`alerta`).
 - **Paginação / Filtros:** Retorna a lista completa de insumos ativos.
 - **Resposta (`200 OK`):**
   ```json
@@ -453,6 +458,7 @@ Os perfis existentes definidos no enum `Perfil` são:
     {
       "id": 1,
       "nome": "Agulha Descartável 25x7",
+      "unidade": "CX",
       "saldo": 38,
       "quantidadeMinima": 100,
       "alerta": true
@@ -460,6 +466,7 @@ Os perfis existentes definidos no enum `Perfil` são:
     {
       "id": 2,
       "nome": "Luvas de Procedimento M",
+      "unidade": "CX",
       "saldo": 450,
       "quantidadeMinima": 200,
       "alerta": false
@@ -491,6 +498,7 @@ Os perfis existentes definidos no enum `Perfil` são:
         "insumo": {
           "id": 1,
           "nome": "Agulha Descartável 25x7",
+          "unidade": "CX",
           "quantidadeMinima": 100,
           "ativo": true,
           "createdAt": "2026-10-12T20:00:00.000Z"
@@ -666,7 +674,7 @@ Abaixo estão listadas as divergências e ausências identificadas na API atual 
 
 3. **Campos no Modelo de Insumos (`Insumo`):**
    - **Nomenclatura do Estoque Mínimo:** O campo no banco e na API chama-se `quantidadeMinima` e não `estoqueMinimo`.
-   - **Ausência de Unidade de Medida:** O modelo `Insumo` não possui o campo `unidade` (ex.: "un", "cx", "ml", "ampola"). Caso a UI precise exibir unidades, terá que definir um valor padrão ou mapeamento estático no frontend até que uma migration adicione essa coluna no backend.
+   - **Unidade de Medida (`UnidadeMedida`):** O modelo `Insumo` possui o campo `unidade` tipado pelo enum `UnidadeMedida` (`UN`, `CX`, `AMPOLA`, `FRASCO`, `ML`, `PAR`, `PACOTE`, `ROLO`, `KIT`, `NAO_INFORMADA`). Registros legados migrados recebem `NAO_INFORMADA`, enquanto novos cadastros via `POST /insumos` exigem uma unidade de negócio válida.
 
 4. **Filtros e Busca em Pacientes e Médicos:**
    - `GET /pacientes` e `GET /medicos` não aceitam query parameters de filtro por nome, CPF ou CRM. A filtragem de busca por texto na tela de pacientes/médicos precisa ser feita no cliente (client-side) após receber a lista completa.
