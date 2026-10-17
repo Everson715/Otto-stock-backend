@@ -1,33 +1,38 @@
 # Contrato da API (API Contract) - Otto Stock Backend
 
-Este documento formaliza a especificação de interface da API REST do backend da clínica (**Otto Stock**), detalhando todas as rotas, métodos HTTP, autenticação, controle de acesso, formatos de entrada e saída, parâmetros de paginação/filtro e lacunas conhecidas para consumo pelo Frontend.
+Este documento formaliza a especificação de interface da API REST do backend da clínica (**Otto Stock**), detalhando todas as rotas, métodos HTTP, autenticação, controle de acesso (RBAC Multi-Perfil), formatos de entrada e saída, parâmetros de paginação/filtro e notas de integração para consumo pelo Frontend (`otto-stock-web`).
 
 ---
 
 ## 1. Informações Gerais e Configuração
 
-- **URL Base Direta:** `http://localhost:3000/api`
+- **URL Base Direta (Desenvolvimento):** `http://localhost:3000/api`
 - **URL Base via Reverse Proxy (Nginx / Produção Local):** `http://localhost/api`
 - **Documentação Interativa (Swagger UI):** `http://localhost:3000/api/docs` (ou `http://localhost/api/docs`)
-- **Health Check:** `GET /api/health`
-- **Formato dos Dados:** `application/json` (UTF-8)
-- **CORS:** Habilitado para qualquer origem em ambiente de desenvolvimento (`*`), suportando requisições com header `Origin: http://localhost:5173`.
+- **Health Check:** `GET /api/health` (ou `GET /health`) — público e isento de rate limit
+- **Formato dos Dados:** `application/json` (UTF-8), limite de payload de `1mb`
+- **Fuso Horário Operacional (Relatórios e Séries Temporais):** `America/Sao_Paulo` (configurável via `APP_TIMEZONE`)
+- **CORS:** Habilitado conforme `CORS_ORIGINS` (padrão `*` em desenvolvimento, suportando `Origin: http://localhost:5173`).
 - **Rate Limiting:**
-  - Geral: 600 requisições por janela de 15 minutos por usuário autenticado (ou IP se anônimo), configurável via `RATE_LIMIT_MAX` (mais folgado em desenvolvimento: 3000/15min).
-  - Login (`POST /auth/login`): 5 tentativas por minuto por IP + e-mail.
+  - **Geral (Autenticado):** `600` requisições por janela de 15 minutos por usuário (`user:<id>`) em produção (`3000`/15min quando `NODE_ENV=development`), configurável via `RATE_LIMIT_MAX`.
+  - **Geral (Visitante Anônimo):** `120` requisições por janela de 15 minutos por IP em produção (`600`/15min quando `NODE_ENV=development`), configurável via `RATE_LIMIT_ANON_MAX`.
+  - **Login (`POST /auth/login`):** 3 camadas simultâneas com `skipSuccessfulRequests: true` (apenas falhas consomem franquia) e chaves anonimizadas via `HMAC-SHA256`:
+    1. **Por IP + E-mail:** máx. `5` falhas / minuto.
+    2. **Por IP (todos os e-mails):** máx. `20` falhas / minuto.
+    3. **Por E-mail (todos os IPs):** máx. `10` falhas / 15 minutos.
 
 ---
 
-## 2. Autenticação e Credenciais de Teste
+## 2. Autenticação, Credenciais de Teste e Controle de Acesso (RBAC)
 
 ### 2.1. Credenciais de Teste (Usuário Seed)
 
-O banco de dados é inicializado automaticamente com o seguinte usuário administrador:
+O banco de dados é inicializado automaticamente (`npx prisma db seed`) com o seguinte usuário administrador (customizável via `ADMIN_EMAIL` e `ADMIN_PASSWORD`) e um catálogo inicial de insumos com unidades de medida reais:
 - **E-mail:** `admin@clinica.com`
 - **Senha:** `admin123`
-- **Perfil (Role):** `ADMIN`
+- **Perfis (Roles):** `["ADMIN"]`
 
-### 2.2. Perfis de Usuário (Roles Disponíveis)
+### 2.2. Perfis de Usuário e Matriz RBAC Multi-Perfil
 
 Os perfis existentes definidos no enum `Perfil` são:
 1. `ADMIN`
@@ -35,11 +40,28 @@ Os perfis existentes definidos no enum `Perfil` são:
 3. `ATENDENTE`
 4. `GESTOR`
 
+Cada usuário possui um array `perfis: Perfil[]`. O acesso a uma rota protegida por `roleMiddleware` é concedido se o usuário possuir **qualquer um** dos perfis permitidos na rota:
+
+| Módulo / Rota | `ADMIN` | `GESTOR` | `ESTOQUISTA` | `ATENDENTE` |
+| :--- | :---: | :---: | :---: | :---: |
+| `/usuarios` (todas as rotas) | ✅ | ❌ | ❌ | ❌ |
+| `/pacientes` (todas as rotas) | ✅ | ✅ | ❌ | ✅ |
+| `/medicos` (todas as rotas) | ✅ | ✅ | ❌ | ✅ |
+| `/atendimentos` (todas as rotas) | ✅ | ✅ | ❌ | ✅ |
+| `/insumos` (todas as rotas) | ✅ | ✅ | ✅ | ❌ |
+| `/exame-insumos` (todas as rotas) | ✅ | ✅ | ✅ | ❌ |
+| `/estoque/saldo`, `/estoque/resumo`, `/estoque/movimentacoes` (`GET`) | ✅ | ✅ | ✅ | ❌ |
+| `/estoque/entrada`, `/estoque/saida`, `/estoque/ajuste` (`POST`) | ✅ | ❌ | ✅ | ❌ |
+| `/exames`, `/exames/:id`, `/exames/:id/disponibilidade` (`GET`) | ✅ | ✅ | ✅ | ✅ |
+| `/exames` (`POST`, `PUT`, `DELETE`) | ✅ | ✅ | ✅ | ❌ |
+| `/relatorios/dashboard` (`GET`) | ✅ | ✅ | ✅ | ✅ |
+| `/relatorios/movimentacoes-grafico` (`GET`) | ✅ | ✅ | ✅ | ❌ |
+
 ### 2.3. Contrato de Login
 
 #### `POST /auth/login`
 - **Autenticação:** Pública (não requer token).
-- **Rate Limit:** 5 requisições por minuto por IP + e-mail.
+- **Rate Limit:** 5 falhas/min por IP+e-mail, 20 falhas/min por IP e 10 falhas/15min por e-mail.
 - **Corpo da Requisição (JSON):**
   ```json
   {
@@ -54,6 +76,7 @@ Os perfis existentes definidos no enum `Perfil` são:
       "id": 1,
       "nome": "Administrador do Sistema",
       "email": "admin@clinica.com",
+      "perfis": ["ADMIN"],
       "perfil": "ADMIN"
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -72,6 +95,7 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```json
   {
     "id": 1,
+    "perfis": ["ADMIN"],
     "perfil": "ADMIN",
     "iat": 1791846481,
     "exp": 1791875281
@@ -81,7 +105,7 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```http
   Authorization: Bearer <seu_token_jwt>
   ```
-- **Erros de Autenticação:**
+- **Erros de Autenticação e Autorização:**
   - `401 Unauthorized`: `{"error": "Token não fornecido"}`
   - `401 Unauthorized`: `{"error": "Erro de Token"}`
   - `401 Unauthorized`: `{"error": "Token mal formatado"}`
@@ -94,7 +118,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 
 ### 3.1. Infraestrutura & Saúde
 
-#### `GET /health`
+#### `GET /health` (ou `GET /api/health`)
 - **Auth:** Pública
 - **Resposta (`200 OK`):**
   ```json
@@ -107,7 +131,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.2. Pacientes (`/pacientes`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Perfis permitidos: `ADMIN`, `GESTOR`, `ATENDENTE`.
 
 #### `POST /pacientes`
 - **Descrição:** Cadastra um novo paciente.
@@ -185,7 +209,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.3. Insumos (`/insumos`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Perfis permitidos: `ADMIN`, `GESTOR`, `ESTOQUISTA`.
 
 #### `POST /insumos`
 - **Descrição:** Cadastra um novo insumo.
@@ -193,19 +217,28 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```json
   {
     "nome": "Agulha Descartável 25x7",
+    "sku": "INS-AGU-25X7",
     "unidade": "CX",
+    "categoria": "Descartáveis",
+    "fabricante": "BD",
     "quantidadeMinima": 100
   }
   ```
   - `nome`: string (mínimo 3 caracteres, obrigatório, único)
   - `unidade`: enum `UnidadeMedida` (**obrigatório** na criação; valores aceitos: `"UN"`, `"CX"`, `"AMPOLA"`, `"FRASCO"`, `"ML"`, `"PAR"`, `"PACOTE"`, `"ROLO"`, `"KIT"`. O valor de transição `"NAO_INFORMADA"` ou ausência do campo retorna `400 Bad Request`)
+  - `sku`: string (opcional, único se informado)
+  - `categoria`: string (opcional)
+  - `fabricante`: string (opcional)
   - `quantidadeMinima`: inteiro >= 0 (opcional, default: `0`)
 - **Resposta (`201 Created`):**
   ```json
   {
     "id": 1,
     "nome": "Agulha Descartável 25x7",
+    "sku": "INS-AGU-25X7",
     "unidade": "CX",
+    "categoria": "Descartáveis",
+    "fabricante": "BD",
     "quantidadeMinima": 100,
     "ativo": true,
     "createdAt": "2026-10-12T20:00:00.000Z"
@@ -226,7 +259,10 @@ Os perfis existentes definidos no enum `Perfil` são:
       {
         "id": 1,
         "nome": "Agulha Descartável 25x7",
+        "sku": "INS-AGU-25X7",
         "unidade": "CX",
+        "categoria": "Descartáveis",
+        "fabricante": "BD",
         "quantidadeMinima": 100,
         "ativo": true,
         "createdAt": "2026-10-12T20:00:00.000Z"
@@ -244,13 +280,14 @@ Os perfis existentes definidos no enum `Perfil` são:
 - **Resposta (`200 OK`):** Objeto `Insumo` ou `null` se não existir.
 
 #### `PUT /insumos/:id`
-- **Descrição:** Atualiza dados do insumo (`unidade` é opcional na atualização; se enviada, deve ser um valor de negócio válido do enum `UnidadeMedida`).
+- **Descrição:** Atualiza dados do insumo (`unidade` é opcional na atualização; se enviada, deve ser um valor de negócio válido do enum `UnidadeMedida`; `ativo` booleano opcional permite reativar/inativar).
 - **Corpo da Requisição (JSON):**
   ```json
   {
     "nome": "Agulha Descartável 25x7 alterada",
     "unidade": "UN",
-    "quantidadeMinima": 150
+    "quantidadeMinima": 150,
+    "ativo": true
   }
   ```
 - **Resposta (`200 OK`):** Objeto `Insumo` atualizado.
@@ -262,7 +299,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.4. Exames (`/exames`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Leitura e disponibilidade permitidas para `ADMIN`, `GESTOR`, `ESTOQUISTA`, `ATENDENTE`; escrita (`POST`, `PUT`, `DELETE`) restrita a `ADMIN`, `GESTOR`, `ESTOQUISTA`.
 
 #### `POST /exames`
 - **Descrição:** Cadastra um novo exame laboratorial/clínico.
@@ -270,34 +307,63 @@ Os perfis existentes definidos no enum `Perfil` são:
   ```json
   {
     "nome": "Hemograma Completo",
-    "descricao": "Contagem de células sanguíneas"
+    "descricao": "Contagem de células sanguíneas",
+    "codigo": "EX-0001",
+    "departamento": "Hematologia"
   }
   ```
   - `nome`: string (obrigatório, único)
   - `descricao`: string (opcional)
+  - `codigo`: string (opcional, único se informado)
+  - `departamento`: string (opcional)
 - **Resposta (`201 Created`):**
   ```json
   {
     "id": 1,
     "nome": "Hemograma Completo",
     "descricao": "Contagem de células sanguíneas",
+    "codigo": "EX-0001",
+    "departamento": "Hematologia",
     "ativo": true,
-    "createdAt": "2026-10-12T20:00:00.000Z"
+    "createdAt": "2026-10-12T20:00:00.000Z",
+    "insumos": []
   }
   ```
 
 #### `GET /exames`
-- **Descrição:** Lista todos os exames ativos.
+- **Descrição:** Lista todos os exames ativos ordenados por `nome ASC`, incluindo os vínculos `insumos` (`ExameInsumo[]` com `insumo`).
 - **Paginação / Filtros:** Sem paginação (retorna array de todos os ativos).
 - **Resposta (`200 OK`):** `Exame[]`
 
 #### `GET /exames/:id`
-- **Descrição:** Busca exame por ID.
+- **Descrição:** Busca exame por ID (inclui `insumos` com `insumo`).
 - **Resposta (`200 OK`):** Objeto `Exame` ou `null`.
+
+#### `GET /exames/:id/disponibilidade`
+- **Descrição:** Verifica se há saldo em estoque suficiente para realizar o exame e classifica o nível pós-consumo de cada insumo (`CONFORME`, `ATENCAO`, `CRITICO` ou `INSUFICIENTE`).
+- **Resposta (`200 OK`):**
+  ```json
+  {
+    "exameId": 1,
+    "nome": "Hemograma Completo",
+    "codigo": "EX-0001",
+    "disponivelParaAtendimento": true,
+    "itens": [
+      {
+        "insumoId": 1,
+        "nome": "Agulha Descartável 25x7",
+        "unidade": "CX",
+        "quantidadeNecessaria": 1,
+        "disponivel": true,
+        "nivel": "CONFORME"
+      }
+    ]
+  }
+  ```
 
 #### `PUT /exames/:id`
 - **Descrição:** Atualiza exame.
-- **Corpo da Requisição (JSON):** `{ "nome"?: string, "descricao"?: string }`
+- **Corpo da Requisição (JSON):** `{ "nome"?: string, "descricao"?: string, "codigo"?: string, "departamento"?: string, "ativo"?: boolean }`
 - **Resposta (`200 OK`):** Objeto `Exame` atualizado.
 
 #### `DELETE /exames/:id`
@@ -308,7 +374,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 
 ### 3.5. Vínculo Exame-Insumos (`/exame-insumos`)
 > Associa os insumos e quantidades consumidas por cada exame realizado.
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Perfis permitidos: `ADMIN`, `GESTOR`, `ESTOQUISTA`.
 
 #### `POST /exame-insumos`
 - **Descrição:** Associa um insumo e quantidade necessária a um exame.
@@ -355,7 +421,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.6. Médicos (`/medicos`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Perfis permitidos: `ADMIN`, `GESTOR`, `ATENDENTE`.
 
 #### `POST /medicos`
 - **Descrição:** Cadastra um novo médico.
@@ -408,7 +474,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.7. Estoque e Movimentações (`/estoque`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Consultas (`GET`) permitidas para `ADMIN`, `ESTOQUISTA`, `GESTOR`; operações de escrita (`POST`) restritas a `ADMIN` e `ESTOQUISTA`.
 
 #### `POST /estoque/entrada`
 - **Descrição:** Registra uma entrada manual de itens no estoque. O `usuarioId` é atribuído automaticamente pelo token JWT.
@@ -477,7 +543,10 @@ Os perfis existentes definidos no enum `Perfil` são:
     {
       "id": 1,
       "nome": "Agulha Descartável 25x7",
+      "sku": "INS-AGU-25X7",
       "unidade": "CX",
+      "categoria": "Descartáveis",
+      "fabricante": "BD",
       "saldo": 38,
       "quantidadeMinima": 100,
       "alerta": true
@@ -485,7 +554,10 @@ Os perfis existentes definidos no enum `Perfil` são:
     {
       "id": 2,
       "nome": "Luvas de Procedimento M",
+      "sku": "INS-LUV-M",
       "unidade": "CX",
+      "categoria": "EPI",
+      "fabricante": null,
       "saldo": 450,
       "quantidadeMinima": 200,
       "alerta": false
@@ -493,8 +565,30 @@ Os perfis existentes definidos no enum `Perfil` são:
   ]
   ```
 
+#### `GET /estoque/resumo`
+- **Descrição:** Retorna indicadores consolidados de inventário e movimentações no período.
+- **Query Parameters (Opcionais):**
+  - `de` ou `startDate` (string ISO datetime)
+  - `ate` ou `endDate` (string ISO datetime)
+- **Resposta (`200 OK`):**
+  ```json
+  {
+    "itensAtivos": 12,
+    "abaixoDoMinimo": 2,
+    "entradasPeriodo": {
+      "registros": 5,
+      "quantidadeTotal": 320
+    },
+    "saidasPeriodo": {
+      "registros": 18,
+      "quantidadeTotal": 74
+    },
+    "ajustesPeriodo": 1
+  }
+  ```
+
 #### `GET /estoque/movimentacoes`
-- **Descrição:** Histórico de movimentações de estoque paginado com dados do insumo e usuário responsável.
+- **Descrição:** Histórico de movimentações de estoque paginado com dados do insumo, usuário responsável e atendimento vinculado (quando aplicável).
 - **Query Parameters:**
   - `page` (number, opcional, default: `1`)
   - `limit` (number, opcional, default: `20`)
@@ -513,11 +607,15 @@ Os perfis existentes definidos no enum `Perfil` são:
         "quantidade": 50,
         "insumoId": 1,
         "usuarioId": 1,
+        "atendimentoId": null,
         "createdAt": "2026-10-12T20:00:00.000Z",
         "insumo": {
           "id": 1,
           "nome": "Agulha Descartável 25x7",
+          "sku": "INS-AGU-25X7",
           "unidade": "CX",
+          "categoria": "Descartáveis",
+          "fabricante": "BD",
           "quantidadeMinima": 100,
           "ativo": true,
           "createdAt": "2026-10-12T20:00:00.000Z"
@@ -525,7 +623,8 @@ Os perfis existentes definidos no enum `Perfil` são:
         "usuario": {
           "nome": "Administrador do Sistema",
           "email": "admin@clinica.com"
-        }
+        },
+        "atendimento": null
       }
     ],
     "total": 1,
@@ -538,7 +637,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 ---
 
 ### 3.8. Atendimentos (`/atendimentos`)
-> Todas as rotas abaixo requerem `Authorization: Bearer <token>`.
+> Requer `Authorization: Bearer <token>`. Perfis permitidos: `ADMIN`, `GESTOR`, `ATENDENTE`.
 
 #### `POST /atendimentos`
 - **Descrição:** Abre um novo atendimento médico/laboratorial. É inicializado no status `EM_ATENDIMENTO`.
@@ -547,24 +646,16 @@ Os perfis existentes definidos no enum `Perfil` são:
   {
     "pacienteId": 1,
     "medicoId": 1,
-    "exameId": 1
-  }
-  ```
-  - Todos os campos são inteiros positivos e obrigatórios.
-- **Resposta (`201 Created`):**
-  ```json
-  {
-    "id": 1,
-    "pacienteId": 1,
-    "medicoId": 1,
     "exameId": 1,
-    "status": "EM_ATENDIMENTO",
-    "criadoEm": "2026-10-12T20:00:00.000Z"
+    "observacoes": "Paciente em jejum de 12h"
   }
   ```
+  - `pacienteId`, `medicoId`, `exameId`: inteiros positivos e obrigatórios.
+  - `observacoes`: string (opcional).
+- **Resposta (`201 Created`):** Objeto `Atendimento` criado com objetos `paciente`, `medico` e `exame` aninhados.
 
 #### `GET /atendimentos`
-- **Descrição:** Lista atendimentos paginados com filtros avançados e dados de paciente, médico e exame inclusos.
+- **Descrição:** Lista atendimentos paginados com filtros avançados e dados de paciente, médico (incluindo `especialidade`), exame (com `insumos`) e movimentações.
 - **Query Parameters:**
   - `page` (number, opcional, default: `1`)
   - `limit` (number, opcional, default: `10`)
@@ -583,6 +674,10 @@ Os perfis existentes definidos no enum `Perfil` são:
         "medicoId": 1,
         "exameId": 1,
         "status": "EM_ATENDIMENTO",
+        "observacoes": "Paciente em jejum de 12h",
+        "finalizadoEm": null,
+        "canceladoEm": null,
+        "motivoCancelamento": null,
         "criadoEm": "2026-10-12T20:00:00.000Z",
         "paciente": {
           "id": 1,
@@ -604,9 +699,13 @@ Os perfis existentes definidos no enum `Perfil` são:
           "id": 1,
           "nome": "Hemograma Completo",
           "descricao": "Contagem de células sanguíneas",
+          "codigo": "EX-0001",
+          "departamento": "Hematologia",
           "ativo": true,
-          "createdAt": "2026-10-12T20:00:00.000Z"
-        }
+          "createdAt": "2026-10-12T20:00:00.000Z",
+          "insumos": []
+        },
+        "movimentacoes": []
       }
     ],
     "total": 1,
@@ -616,35 +715,42 @@ Os perfis existentes definidos no enum `Perfil` são:
   }
   ```
 
-#### `GET /atendimentos/:id`
-- **Descrição:** Busca atendimento por ID com detalhes de paciente, médico (incluindo `especialidade`) e exame.
-- **Resposta (`200 OK`):** Objeto `Atendimento` ou `null`.
-
-#### `PATCH /atendimentos/:id/finalizar`
-- **Descrição:** Finaliza o atendimento e realiza a **baixa automática no estoque** em transação atômica (`prisma.$transaction`).
-  1. Valida se o atendimento está `EM_ATENDIMENTO`.
-  2. Valida se há saldo para todos os insumos vinculados ao exame do atendimento.
-  3. Registra movimentações de `SAIDA` para cada insumo com motivo `"Baixa automática pelo Atendimento #<id>"`.
-  4. Atualiza o status para `FINALIZADO`.
-- **Corpo da Requisição:** Vazio.
+#### `GET /atendimentos/resumo`
+- **Descrição:** Retorna resumo operacional dos atendimentos e consumo de insumos na data de referência.
+- **Query Parameters:**
+  - `data` (string ISO date, opcional, default: data atual)
 - **Resposta (`200 OK`):**
   ```json
   {
-    "id": 1,
-    "pacienteId": 1,
-    "medicoId": 1,
-    "exameId": 1,
-    "status": "FINALIZADO",
-    "criadoEm": "2026-10-12T20:00:00.000Z"
+    "dataReferencia": "2026-10-17",
+    "totalDia": 15,
+    "emAtendimento": 3,
+    "finalizadosHoje": 10,
+    "canceladosHoje": 2,
+    "taxaCancelamento": 13.3,
+    "insumosConsumidosHoje": 28
   }
   ```
+
+#### `GET /atendimentos/:id`
+- **Descrição:** Busca atendimento por ID com detalhes de paciente, médico (incluindo `especialidade`), exame e movimentações.
+- **Resposta (`200 OK`):** Objeto `Atendimento` ou `null`.
+
+#### `PATCH /atendimentos/:id/finalizar`
+- **Descrição:** Finaliza o atendimento e realiza a **baixa automática no estoque** em transação atômica (`Serializable`).
+  1. Valida se o atendimento está `EM_ATENDIMENTO`.
+  2. Valida se há saldo para todos os insumos vinculados ao exame do atendimento.
+  3. Registra movimentações de `SAIDA` vinculadas ao `atendimentoId` e `usuarioId` com motivo `"Baixa automática pelo Atendimento #<id>"`.
+  4. Atualiza o status para `FINALIZADO` e preenche `finalizadoEm`.
+- **Corpo da Requisição:** Vazio.
+- **Resposta (`200 OK`):** Objeto `Atendimento` finalizado.
 - **Respostas de Erro:**
   - `400 Bad Request`: `{"error": true, "message": "Não é possível finalizar um atendimento que está FINALIZADO"}`
-  - `400 Bad Request`: `{"error": true, "message": "Estoque insuficiente para o insumo ID 2. Necessário: 3, Saldo: 1"}`
+  - `400 Bad Request`: `{"error": true, "message": "Estoque insuficiente para o insumo \"<nome>\" (ID 2). Necessário: 3, Saldo: 1"}`
 
 #### `PATCH /atendimentos/:id/cancelar`
-- **Descrição:** Cancela o atendimento (apenas permitido se estiver no status `EM_ATENDIMENTO`). Não afeta o estoque.
-- **Corpo da Requisição:** Vazio.
+- **Descrição:** Cancela o atendimento (apenas permitido se estiver no status `EM_ATENDIMENTO`), preenchendo `canceladoEm` e opcionalmente `motivoCancelamento`. Não afeta o estoque.
+- **Corpo da Requisição (JSON, opcional):** `{ "motivo"?: string, "motivoCancelamento"?: string }`
 - **Resposta (`200 OK`):** Objeto `Atendimento` com `status: "CANCELADO"`.
 - **Resposta de Erro (`400 Bad Request`):** `{"error": true, "message": "Não é possível cancelar um atendimento que está FINALIZADO"}`
 
@@ -655,6 +761,7 @@ Os perfis existentes definidos no enum `Perfil` são:
 
 #### `GET /relatorios/dashboard`
 - **Descrição:** Dados consolidados para o painel principal da clínica, incluindo o nome do exame em `examesMaisRealizados` e os contadores agregados por status e do dia atual no fuso `America/Sao_Paulo`.
+- **Perfis Permitidos (RBAC):** `ADMIN`, `GESTOR`, `ESTOQUISTA`, `ATENDENTE`.
 - **Resposta (`200 OK`):**
   ```json
   {
@@ -716,31 +823,86 @@ Os perfis existentes definidos no enum `Perfil` são:
 
 ---
 
-## 4. Lacunas Conhecidas e Recomendações para o Frontend
+### 3.10. Usuários (`/usuarios`)
+> Requer `Authorization: Bearer <token>`. Exclusivo para o perfil `ADMIN` (demais perfis recebem `403 Forbidden`). A senha nunca é retornada nas respostas.
 
-Abaixo estão listadas as divergências e ausências identificadas na API atual que o frontend precisará contornar ou prever em seu desenvolvimento (nenhuma delas foi alterada nesta etapa para preservar o escopo do contrato):
+#### `POST /usuarios`
+- **Descrição:** Cria um novo usuário no sistema com suporte a múltiplos perfis.
+- **Corpo da Requisição (JSON):**
+  ```json
+  {
+    "nome": "Carlos Estoquista",
+    "email": "carlos@clinica.com",
+    "senha": "senhaSegura123",
+    "perfis": ["ESTOQUISTA", "ATENDENTE"]
+  }
+  ```
+  - `nome`: string (mínimo 3 caracteres, obrigatório)
+  - `email`: string (e-mail válido, obrigatório, único)
+  - `senha`: string (mínimo 6 caracteres, obrigatório)
+  - `perfis`: array não vazio de `Perfil` (`"ADMIN"` | `"ESTOQUISTA"` | `"ATENDENTE"` | `"GESTOR"`, default: `["ATENDENTE"]`; também aceita `perfil` singular por retrocompatibilidade)
+- **Resposta (`201 Created`):**
+  ```json
+  {
+    "id": 2,
+    "nome": "Carlos Estoquista",
+    "email": "carlos@clinica.com",
+    "perfis": ["ESTOQUISTA", "ATENDENTE"],
+    "ativo": true,
+    "createdAt": "2026-10-16T02:00:00.000Z"
+  }
+  ```
 
-1. **Inconsistência de Paginação entre Módulos:**
-   - Os módulos `/insumos`, `/estoque/movimentacoes` e `/atendimentos` implementam paginação padrão com o formato `{ items, total, page, limit, totalPages }`.
-   - Os módulos `/pacientes` e `/medicos` implementam o **Passo 1 (retrocompatível)**: retornam `{ items, total, page, limit, totalPages }` quando qualquer um entre `page`, `limit` ou `search` é informado na query string, e mantêm o array legado quando nenhum dos três é enviado. Já `/exames` e `/exame-insumos` retornam diretamente um array JSON.
+#### `GET /usuarios`
+- **Descrição:** Lista todos os usuários ativos ordenados por `nome ASC`.
+- **Resposta (`200 OK`):** `Usuario[]` (sem o campo `senha`).
 
-2. **Ausência de Endpoint de Saldo Consolidado Individual:**
-   - A rota `GET /estoque/saldo` calcula e retorna em memória a lista de saldo de **todos** os insumos ativos de uma só vez.
-   - Não existe atualmente um endpoint para consultar o saldo específico de um insumo individual (ex.: `GET /estoque/saldo/:insumoId`). O frontend deve filtrar o array retornado por `GET /estoque/saldo` ou utilizar o saldo exibido no payload geral.
+#### `GET /usuarios/:id`
+- **Descrição:** Busca usuário por ID.
+- **Resposta (`200 OK`):** Objeto `Usuario` ou `404 Not Found` `{"message": "Usuário não encontrado"}`.
 
-3. **Campos no Modelo de Insumos (`Insumo`):**
-   - **Nomenclatura do Estoque Mínimo:** O campo no banco e na API chama-se `quantidadeMinima` e não `estoqueMinimo`.
-   - **Unidade de Medida (`UnidadeMedida`):** O modelo `Insumo` possui o campo `unidade` tipado pelo enum `UnidadeMedida` (`UN`, `CX`, `AMPOLA`, `FRASCO`, `ML`, `PAR`, `PACOTE`, `ROLO`, `KIT`, `NAO_INFORMADA`). Registros legados migrados recebem `NAO_INFORMADA`, enquanto novos cadastros via `POST /insumos` exigem uma unidade de negócio válida.
+#### `PUT /usuarios/:id`
+- **Descrição:** Atualiza dados cadastrais, senha, status `ativo` ou `perfis` de um usuário.
+- **Corpo da Requisição (JSON):** `{ "nome"?: string, "email"?: string, "senha"?: string, "perfis"?: Perfil[], "ativo"?: boolean }`
+- **Resposta (`200 OK`):** Objeto `Usuario` atualizado.
 
-4. **Filtros e Busca em Pacientes e Médicos (Transição Passo 1):**
-   - `GET /pacientes` e `GET /medicos` suportam `page`, `limit` (`1..100`) e `search` (busca *case-insensitive* por `nome`/`cpf` em pacientes e por `nome`/`crm`/`especialidade` em médicos), ativando o envelope paginado quando qualquer um desses parâmetros é enviado.
+#### `PATCH /usuarios/:id/perfis`
+- **Descrição:** Atualiza exclusivamente a lista de perfis (`perfis`) do usuário (remove duplicatas automaticamente).
+- **Corpo da Requisição (JSON):**
+  ```json
+  {
+    "perfis": ["GESTOR", "ESTOQUISTA"]
+  }
+  ```
+- **Resposta (`200 OK`):** Objeto `Usuario` atualizado.
 
-5. **Payload de Exames Mais Realizados e Contadores no Dashboard:**
-   - O retorno de `GET /relatorios/dashboard` inclui `{ exameId, nome, _count: { id } }` em `examesMaisRealizados` e o objeto `atendimentosPorStatus` (`emAtendimento`, `finalizados`, `cancelados`, `finalizadosHoje` e `protocolosDistintosHoje` agregados no banco no fuso `America/Sao_Paulo`, sem truncamento em 100 registros).
+#### `DELETE /usuarios/:id`
+- **Descrição:** Desativa o usuário (soft delete, `ativo = false`).
+- **Resposta (`204 No Content`):** Corpo vazio.
 
-6. **Filtro de Insumos Críticos:**
-   - A rota `GET /estoque/saldo` não aceita query param `apenasCriticos=true`. O frontend deve aplicar um filtro no client-side verificando o atributo booleano `item.alerta === true`.
+---
 
-7. **Gestão de Usuários (RBAC / CRUD):**
-   - Não existem rotas de listagem, cadastro ou alteração de usuários (`/usuarios`). Atualmente, apenas o login e o seed inicial estão implementados.
-   - Embora o middleware `roleMiddleware` exista no código-fonte, as rotas protegidas atuais utilizam apenas a autenticação básica `authMiddleware`, permitindo que qualquer perfil autenticado acerte os endpoints protegidos.
+## 4. Notas de Integração, Transições Ativas e Recomendações para o Frontend
+
+1. **Paginação em `/pacientes` e `/medicos` (Transição Retrocompatível — Passo 1 Ativo):**
+   - Os módulos `/insumos`, `/estoque/movimentacoes` e `/atendimentos` retornam sempre o envelope `{ items, total, page, limit, totalPages }`.
+   - Os módulos `/pacientes` e `/medicos` operam no **Passo 1 da transição**: retornam `{ items, total, page, limit, totalPages }` sempre que **qualquer um** entre `page`, `limit` (`1..100`) ou `search` é enviado na query string, e mantêm o array legado (`Paciente[]` / `Medico[]`) quando chamados sem parâmetros.
+   - Assim que o frontend concluir a migração dos seletores de `Atendimentos.tsx` e das tabelas de `Pacientes.tsx` / `Medicos.tsx` (Passo 2), o envelope paginado poderá tornar-se o padrão mesmo sem parâmetros (Passo 3).
+
+2. **Unidade de Medida em Insumos (`UnidadeMedida`) e Ordem de Deploy:**
+   - O campo `unidade` no modelo `Insumo` utiliza o enum `UnidadeMedida` (`UN`, `CX`, `AMPOLA`, `FRASCO`, `ML`, `PAR`, `PACOTE`, `ROLO`, `KIT`, `NAO_INFORMADA`).
+   - **Atenção no Deploy:** `POST /insumos` exige o envio de uma unidade de negócio válida (rejeitando ausência ou `NAO_INFORMADA` com `400 Bad Request`), enquanto `PUT /insumos/:id` mantém `unidade` opcional. O frontend deve enviar `unidade` no formulário de criação de insumos.
+   - Para insumos legados migrados como `NAO_INFORMADA`, o frontend deve exibir `"—"` com tooltip `"Unidade não cadastrada"`, sem inferir `"un"` como fallback.
+
+3. **Filtro de Status em Insumos (`GET /insumos?ativo=`):**
+   - `GET /insumos` aceita `?ativo=true|false|all` (default `"true"`) em conjunto com `page`, `limit` e `nome`, permitindo ao frontend popular as abas `"Ativos"`, `"Inativos"` e `"Todos"`.
+
+4. **Especialidade Médica (`Medico.especialidade`):**
+   - `POST /medicos`, `PUT /medicos/:id`, `GET /medicos`, `GET /medicos/:id` e o objeto `medico` aninhado em `GET /atendimentos` e `GET /atendimentos/:id` incluem `"especialidade": string | null` (com `trim`, 2 a 80 caracteres e conversão de `""` para `null`).
+
+5. **Dashboard Enriquecido e Gráfico Temporal de Movimentações (`/relatorios`):**
+   - `GET /relatorios/dashboard` inclui `nome` em cada item de `examesMaisRealizados` e o objeto `atendimentosPorStatus` (`emAtendimento`, `finalizados`, `cancelados`, `finalizadosHoje`, `protocolosDistintosHoje` calculados no fuso `America/Sao_Paulo` sem limite de 100 registros).
+   - `GET /relatorios/movimentacoes-grafico?dias=7` fornece a série temporal diária (`1..90` dias, *zero-filling* em `America/Sao_Paulo`) com `entradasQtd`, `saidasQtd`, `ajustesLiquidoQtd` e `totalOperacoes` para os perfis `ADMIN`, `ESTOQUISTA` e `GESTOR`.
+
+6. **Saldo Consolidado e Filtro de Críticos (`GET /estoque/saldo`):**
+   - `GET /estoque/saldo` retorna a lista de todos os insumos ativos com `saldo`, `unidade`, `quantidadeMinima` e `alerta: boolean`. O filtro de itens críticos (`item.alerta === true`) permanece client-side ou via `GET /estoque/resumo`.
